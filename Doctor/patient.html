@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#ffffff">
+    <title>Dr. Care Clinic | My Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <script>
+        const authSession = JSON.parse(localStorage.getItem('clinic_session'));
+        if (!authSession || authSession.role !== 'patient') {
+            window.location.replace('index.html'); 
+        }
+    </script>
+
+    <style>
+        :root { 
+            --bg-base: #f8fafc; --bg-pure: #ffffff; --text-main: #0f172a; --text-muted: #64748b; 
+            --accent-glow: #0d9488; --primary-light: #ccfbf1; 
+            --glass-bg: rgba(255, 255, 255, 0.75); --glass-border: rgba(255, 255, 255, 1); 
+            --shadow-premium: 0 20px 40px -10px rgba(15, 23, 42, 0.08); 
+            --mouse-x: 50%; --mouse-y: 50%; 
+        }
+        html { scroll-behavior: smooth; } * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; } 
+        body { background-color: var(--bg-base); color: var(--text-main); overflow-x: hidden; min-height: 100vh; display: flex; flex-direction: column; }
+        
+        .cursor-glow { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: radial-gradient(circle 600px at var(--mouse-x) var(--mouse-y), rgba(13, 148, 136, 0.15), transparent 60%); z-index: -1; pointer-events: none; transition: 0.1s; }
+        .ambient-blob-1, .ambient-blob-2 { position: fixed; filter: blur(90px); z-index: -2; opacity: 0.7; animation: float-blob 12s infinite alternate; pointer-events: none; }
+        .ambient-blob-1 { top: -10%; left: -10%; width: 50vw; height: 50vw; background: radial-gradient(circle, #ccfbf1, transparent 60%); } 
+        .ambient-blob-2 { bottom: -20%; right: -10%; width: 60vw; height: 60vw; background: radial-gradient(circle, #e0f2fe, transparent 60%); animation-delay: -5s; }
+        #bg-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -3; pointer-events: none; opacity: 0.8; }
+
+        .navbar { display: flex; justify-content: space-between; align-items: center; padding: 1rem 5%; background: var(--glass-bg); backdrop-filter: blur(20px); border-bottom: 1px solid var(--glass-border); position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 20px rgba(0,0,0,0.03); }
+        .logo { font-size: 1.5rem; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 8px; cursor: pointer; } 
+        .logo-icon { color: var(--accent-glow); font-size: 1.8rem; }
+        .nav-links { display: flex; gap: 2.5rem; align-items: center;} 
+        .nav-links a { text-decoration: none; color: var(--text-muted); font-weight: 600; transition: 0.3s; cursor: pointer;} 
+        .nav-links a.active, .nav-links a:hover { color: var(--accent-glow); font-weight: 700;}
+        .nav-actions { display: flex; gap: 1.2rem; align-items: center; } 
+        .dr-profile-nav { display: flex; align-items: center; gap: 10px; background: var(--bg-pure); padding: 5px 15px 5px 5px; border-radius: 50px; box-shadow: var(--shadow-premium); border: 1px solid var(--glass-border); height: 46px;} 
+        .avatar { width: 36px; height: 36px; border-radius: 50%; background: #e0f2fe; display: flex; justify-content: center; align-items: center; font-size: 1.2rem; }
+        
+        .btn-danger { background: #fef2f2; color: #ef4444; border: 1px solid #fecaca; padding: 0.8rem 1.5rem; border-radius: 12px; font-weight: 700; cursor: pointer; transition: 0.3s; height: 46px; display: flex; align-items: center;} 
+        .btn-danger:hover { background: #ef4444; color: white;}
+
+        .container { flex: 1; max-width: 1400px; margin: auto; padding: 2rem 5%; width: 100%;} 
+        .dashboard-header { margin-bottom: 2.5rem; } 
+        .dashboard-header h1 { font-size: 2.5rem; font-weight: 800; letter-spacing: -1px; }
+        .glass-panel { background: var(--glass-bg); backdrop-filter: blur(15px); border: 1px solid var(--glass-border); border-radius: 30px; padding: 2.5rem; box-shadow: var(--shadow-premium); }
+        .patient-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start; }
+        
+        .eta-circle { width: 240px; height: 240px; border-radius: 50%; margin: 2.5rem auto; background: var(--bg-pure); display: flex; flex-direction: column; justify-content: center; align-items: center; box-shadow: inset 0 0 20px rgba(13, 148, 136, 0.1), 0 20px 40px rgba(13, 148, 136, 0.15); border: 10px solid var(--primary-light); position: relative; transition: 0.5s;}
+        .eta-circle::before { content: ''; position: absolute; top:-10px; left:-10px; right:-10px; bottom:-10px; border-radius: 50%; border: 10px solid var(--accent-glow); clip-path: polygon(50% 0%, 100% 0%, 100% 50%, 50% 50%); animation: spin 4s linear infinite; transition: 0.5s; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .eta-time { font-size: 3rem; font-weight: 900; color: var(--accent-glow); line-height: 1; text-align: center; padding: 0 10px;} 
+        .eta-label { font-size: 1.1rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-top: 8px;}
+        
+        .queue-status-box { background: var(--bg-base); border-radius: 16px; padding: 1.5rem; display: flex; justify-content: space-between; margin-top: 2rem; border: 1px solid var(--glass-border);} 
+        .status-item h4 { font-size: 0.9rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-bottom: 5px; } 
+        .status-item p { font-size: 1.8rem; font-weight: 800; color: var(--text-main); }
+        .alert-box { background: #f8fafc; border: 1px solid #e2e8f0; color: #475569; padding: 1.2rem; border-radius: 12px; margin-top: 2rem; font-weight: 600; display: flex; align-items: center; gap: 15px; text-align: left; transition: 0.3s; font-size: 1.05rem;}
+
+        [popover] { margin: auto; padding: 2.5rem; background: var(--glass-bg); backdrop-filter: blur(25px); border: 1px solid var(--glass-border); border-radius: 28px; color: var(--text-main); width: 90%; max-width: 600px; box-shadow: 0 50px 100px -20px rgba(13, 148, 136, 0.3); max-height: 80vh; overflow-y: auto;}
+        [popover]::backdrop { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(8px); }
+        .close-btn { background: none; border: none; font-size: 2rem; cursor: pointer; color: var(--text-muted); transition: 0.2s; line-height: 1; float: right;} 
+        .close-btn:hover { color: #ef4444; }
+        
+        .rx-card { background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 4px 10px rgba(0,0,0,0.02);}
+        .rx-card h4 { color: var(--accent-glow); margin-bottom: 1rem; border-bottom: 1px dashed #e2e8f0; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;}
+        .rx-card ul { list-style: none; }
+        .rx-card li { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 1rem; font-weight: 600;}
+        .rx-card li:last-child { border: none; }
+        .rx-card span.med-name { color: var(--text-main); } 
+        .rx-card span.med-dose { color: var(--text-muted); }
+
+        @media (max-width: 1024px) { .patient-grid { grid-template-columns: 1fr; } .nav-links {display: none;} }
+    </style>
+</head>
+<body>
+    <div class="cursor-glow" id="cursorGlow"></div><div class="ambient-blob-1"></div><div class="ambient-blob-2"></div><canvas id="bg-canvas"></canvas>
+
+    <nav class="navbar">
+        <div class="logo" onclick="window.location.href='index.html'"><span class="logo-icon">✤</span> Dr. Care</div>
+        <div class="nav-links">
+            <a href="#" class="active">Live Status</a>
+            <a onclick="window.openEVault()">My E-Vault</a>
+        </div>
+        <div class="nav-actions">
+            <div class="dr-profile-nav">
+                <div class="avatar">👤</div>
+                <span style="font-weight: 700; padding-right: 10px; color: var(--text-main);" id="patientNameNav">User</span>
+            </div>
+            <button class="btn-danger" onclick="window.logoutPatient()"><i class="ph-bold ph-sign-out"></i> Logout</button>
+        </div>
+    </nav>
+
+    <div id="audioUnlocker" style="position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:9999; background:rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); display:flex; flex-direction:column; justify-content:center; align-items:center; color:white; cursor: pointer;" onclick="window.unlockAudio()">
+        <h1 style="font-size: 3rem; margin-bottom: 1rem; color: var(--accent-glow);">Tap to Enter Portal</h1>
+        <p style="font-size: 1.2rem; color: var(--text-muted);">Enables Live Audio Notifications</p>
+    </div>
+
+    <main class="container">
+        <div class="dashboard-header">
+            <h1 id="patientGreeting">Hello, User</h1>
+            <p id="dateDisplay" style="color: var(--text-muted); font-weight: 600; margin-top: 5px;"></p>
+        </div>
+        <div class="patient-grid">
+            
+            <div class="glass-panel" style="text-align: center;">
+                <h3 style="font-size: 1.5rem; font-weight: 800;">Your Real-Time Status</h3>
+                <div class="eta-circle" id="circleContainer">
+                    <div class="eta-time" id="patientDisplayTime">--:--</div>
+                    <div class="eta-label" id="patientDisplayLabel">Fetching Cloud...</div>
+                </div>
+                <div class="alert-box" id="alertBox">
+                    <span style="font-size: 2rem;" id="alertIcon">🔄</span>
+                    <div id="alertText">Connecting to Dr. Care Cloud System...</div>
+                </div>
+                <div class="queue-status-box">
+                    <div class="status-item"><h4>Now Consulting</h4><p id="patientCurrentToken">#--</p></div>
+                    <div style="width: 1px; background: #e2e8f0;"></div>
+                    <div class="status-item"><h4>Your Token</h4><p style="color: var(--accent-glow);" id="patientMyToken">#--</p></div>
+                </div>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 2rem;">
+                <div class="glass-panel">
+                    <h3 style="font-size: 1.4rem; margin-bottom: 1.5rem;">Appointment Details</h3>
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e2e8f0; padding-bottom: 1rem; margin-bottom: 1rem;">
+                        <span style="color: var(--text-muted); font-weight: 600;">Doctor</span>
+                        <span style="font-weight: 800; color: var(--text-main);" id="patientDoctorName">Fetching...</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e2e8f0; padding-bottom: 1rem; margin-bottom: 1rem;">
+                        <span style="color: var(--text-muted); font-weight: 600;">Department</span>
+                        <span style="font-weight: 700;" id="patientDoctorDept">General Medicine</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: var(--text-muted); font-weight: 600;">Issue</span>
+                        <span style="font-weight: 700; color: var(--accent-glow);" id="patientIssue">...</span>
+                    </div>
+                </div>
+
+                <div class="glass-panel" style="background: linear-gradient(135deg, var(--primary-light), white); border-color: var(--accent-glow); cursor: pointer; transition: 0.3s;" onclick="window.openEVault()">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h3 style="font-size: 1.4rem; color: var(--accent-glow); margin-bottom: 5px;">Access Digital E-Vault</h3>
+                            <p style="color: var(--text-muted); font-weight: 600;">View your prescriptions & medical certs</p>
+                        </div>
+                        <i class="ph-bold ph-arrow-right" style="font-size: 2rem; color: var(--accent-glow);"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="eVaultPopover" popover>
+        <button class="close-btn" popovertarget="eVaultPopover" popovertargetaction="hide">×</button>
+        <h2 style="font-size: 2rem; font-weight: 800; color: var(--accent-glow); margin-bottom: 5px;">My E-Vault</h2>
+        <p style="color: var(--text-muted); font-weight: 600; font-size: 1rem; margin-bottom: 2rem;">Your Digital Medical Records</p>
+        <div id="eVaultContent">
+            <div style="text-align: center; padding: 2rem; color: var(--text-muted);">Fetching from Cloud...</div>
+        </div>
+    </div>
+
+    <script>
+        window.audioAllowed = false;
+        window.unlockAudio = function() {
+            const unlocker = document.getElementById('audioUnlocker');
+            if(unlocker) unlocker.style.display = 'none';
+            window.audioAllowed = true;
+            try { 
+                let a = new (window.AudioContext || window.webkitAudioContext)(); 
+                let o = a.createOscillator(); o.connect(a.destination); o.start(); o.stop(a.currentTime + 0.01); 
+            } catch(e) { console.log(e); }
+        }
+    </script>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getDatabase, ref, onValue, get, child } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDFmxplnyx8_YZfeaAioPcAdn0d5jwPO_g",
+            authDomain: "drcare-f6c66.firebaseapp.com",
+            databaseURL: "https://drcare-f6c66-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "drcare-f6c66",
+            storageBucket: "drcare-f6c66.firebasestorage.app",
+            messagingSenderId: "833833626441",
+            appId: "1:833833626441:web:974c0ecf65419444804898"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // UI Initialization
+        document.getElementById('dateDisplay').innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+        
+        const userSession = JSON.parse(localStorage.getItem('clinic_session'));
+        const userPhone = userSession.userId;
+        let shortName = userSession.name ? userSession.name.split(' ')[0] : "User";
+        document.getElementById('patientNameNav').innerText = shortName;
+        document.getElementById('patientGreeting').innerText = `Hello, ${shortName}`;
+
+        window.playDingDong = function() {
+            if(!window.audioAllowed) return; 
+            try { 
+                let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                let o = audioCtx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(880, audioCtx.currentTime); 
+                let gain = audioCtx.createGain(); gain.gain.setValueAtTime(0.5, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                o.connect(gain); gain.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + 0.3); 
+                setTimeout(() => {
+                    let o2 = audioCtx.createOscillator(); o2.type = 'sine'; o2.frequency.setValueAtTime(659.25, audioCtx.currentTime); 
+                    let gain2 = audioCtx.createGain(); gain2.gain.setValueAtTime(0.5, audioCtx.currentTime); gain2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                    o2.connect(gain2); gain2.connect(audioCtx.destination); o2.start(); o2.stop(audioCtx.currentTime + 0.4); 
+                }, 250);
+            } catch(e) { console.log(e); }
+        }
+
+        // ==========================================
+        // 🟢 ADVANCED REAL-TIME SYNC LOGIC 🟢
+        // ==========================================
+        let lastSeenToken = null;
+        let myCertsData = [];
+        let myRxData = [];
+        
+        let isConsulting = false;
+        let isCompleted = false;
+        let myQueueIndex = -1;
+        let myQueueData = null;
+        let currentPatientData = null;
+        let completedData = null;
+
+        // 1. Fetch Dynamic Doctor Info
+        onValue(ref(db, 'cmsDoctors'), (snapshot) => {
+            const docs = snapshot.val() || [];
+            const docList = Object.values(docs).filter(d => d !== null);
+            if(docList.length > 0) {
+                document.getElementById('patientDoctorName').innerText = docList[0].name;
+                document.getElementById('patientDoctorDept').innerText = docList[0].badge || "General Medicine";
+            } else {
+                document.getElementById('patientDoctorName').innerText = "Duty Doctor";
+                document.getElementById('patientDoctorDept').innerText = "General Consultation";
+            }
+        });
+
+        // 2. Fetch E-Vault Data
+        onValue(ref(db, `clinicPrescriptions/${userPhone}`), (snap) => {
+            myRxData = snap.exists() ? Object.values(snap.val()).filter(r=>r!==null) : [];
+        });
+        onValue(ref(db, `clinicCerts/${userPhone}`), (snap) => {
+            myCertsData = snap.exists() ? Object.values(snap.val()).filter(c=>c!==null) : [];
+        });
+
+        // 3. 🚨 Listen to Current Patient (Inside Cabin) 🚨
+        onValue(ref(db, 'currentPatient'), (snap) => {
+            let cp = snap.exists() ? snap.val() : null;
+            if(cp) {
+                document.getElementById('patientCurrentToken').innerText = `#${cp.token}`;
+                if(cp.phone === userPhone) {
+                    isConsulting = true;
+                    currentPatientData = cp;
+                } else {
+                    isConsulting = false;
+                    currentPatientData = null;
+                }
+            } else {
+                document.getElementById('patientCurrentToken').innerText = `#--`;
+                isConsulting = false;
+                currentPatientData = null;
+            }
+            renderPatientStatus();
+        });
+
+        // 4. Listen to Waiting Queue
+        onValue(ref(db, 'clinicQueue'), (snapshot) => {
+            const queueData = snapshot.val() || [];
+            const queue = Object.values(queueData).filter(q => q !== null);
+            
+            myQueueIndex = queue.findIndex(p => p.phone === userPhone);
+            if(myQueueIndex !== -1) {
+                myQueueData = queue[myQueueIndex];
+            } else {
+                myQueueData = null;
+            }
+            renderPatientStatus();
+        });
+
+        // 5. Listen to Completed History
+        onValue(ref(db, 'completedPatients'), (snap) => {
+            const historyData = snap.val() || [];
+            const history = Object.values(historyData).filter(h => h !== null);
+            
+            let comp = history.find(p => p.phone === userPhone);
+            if (comp) {
+                isCompleted = true;
+                completedData = comp;
+            } else {
+                isCompleted = false;
+                completedData = null;
+            }
+            renderPatientStatus();
+        });
+
+        // 6. 🧠 Central Render Logic
+        function renderPatientStatus() {
+            const alertBox = document.getElementById('alertBox');
+            const circle = document.getElementById('circleContainer');
+            const timeTxt = document.getElementById('patientDisplayTime');
+            const labelTxt = document.getElementById('patientDisplayLabel');
+
+            // STATE A: Currently Inside Cabin!
+            if (isConsulting && currentPatientData) {
+                document.getElementById('patientMyToken').innerText = `#${currentPatientData.token}`;
+                document.getElementById('patientIssue').innerText = currentPatientData.issue || "General Checkup";
+                
+                timeTxt.innerText = "NOW"; labelTxt.innerText = "YOUR TURN";
+                document.getElementById('alertText').innerText = "Doctor is ready! Please proceed to the cabin inside.";
+                alertBox.style.background = "#dcfce7"; alertBox.style.borderColor = "#86efac"; alertBox.style.color = "#15803d"; 
+                document.getElementById('alertIcon').innerText = "🚶‍♂️"; circle.style.borderColor = "#86efac"; timeTxt.style.color = "#15803d";
+                
+                if(lastSeenToken !== currentPatientData.token) { 
+                    window.playDingDong(); 
+                    lastSeenToken = currentPatientData.token; 
+                }
+                return;
+            }
+
+            // STATE B: Waiting in Queue
+            if (myQueueIndex !== -1 && myQueueData) {
+                document.getElementById('patientMyToken').innerText = `#${myQueueData.token}`;
+                document.getElementById('patientIssue').innerText = myQueueData.issue || "General Checkup";
+                
+                let waitTime = (myQueueIndex + 1) * 20; 
+                let parts = (myQueueData.displayTime || "--:-- SLOT").split(' ');
+
+                if (myQueueData.earlyCall) {
+                    timeTxt.innerText = "HURRY"; labelTxt.innerText = "EARLY CALL";
+                    document.getElementById('alertText').innerHTML = "<b>🚨 URGENT:</b> Doctor is free! Please reach the clinic NOW.";
+                    alertBox.style.background = "#fef08a"; alertBox.style.borderColor = "#eab308"; alertBox.style.color = "#854d0e"; 
+                    document.getElementById('alertIcon').innerText = "🏃💨"; circle.style.borderColor = "#eab308"; timeTxt.style.color = "#854d0e";
+                    
+                    if(!localStorage.getItem('alerted_'+myQueueData.token)) {
+                        window.playDingDong(); localStorage.setItem('alerted_'+myQueueData.token, 'true');
+                    }
+                } else {
+                    timeTxt.innerText = parts[0] || "--:--"; labelTxt.innerText = "EST TIME";
+                    document.getElementById('alertText').innerText = `Wait time: ~${waitTime} Mins. ${myQueueIndex} patient(s) ahead of you.`;
+                    alertBox.style.background = "#fef2f2"; alertBox.style.borderColor = "#fecaca"; alertBox.style.color = "#ef4444"; 
+                    document.getElementById('alertIcon').innerText = "⏳"; circle.style.borderColor = "var(--primary-light)"; timeTxt.style.color = "var(--accent-glow)";
+                }
+                return;
+            }
+
+            // STATE C: Completed Visit
+            if (isCompleted && completedData) {
+                document.getElementById('patientMyToken').innerText = `#${completedData.token}`;
+                document.getElementById('patientIssue').innerText = completedData.issue || "General Checkup";
+                
+                timeTxt.innerText = "DONE"; labelTxt.innerText = "VISIT OVER";
+                document.getElementById('alertText').innerText = "Consultation completed! Please check your E-Vault for medicines/receipts.";
+                alertBox.style.background = "#f1f5f9"; alertBox.style.borderColor = "#cbd5e1"; alertBox.style.color = "#475569"; 
+                document.getElementById('alertIcon').innerText = "📋"; circle.style.borderColor = "#cbd5e1"; timeTxt.style.color = "#475569";
+                return;
+            }
+
+            // STATE D: No Slot Booked
+            document.getElementById('patientMyToken').innerText = `--`;
+            document.getElementById('patientIssue').innerText = "N/A";
+            timeTxt.innerText = "--:--"; labelTxt.innerText = "NO SLOT";
+            document.getElementById('alertText').innerText = "No active appointments. You can book a new slot from the Home page.";
+            alertBox.style.background = "#f8fafc"; alertBox.style.borderColor = "#e2e8f0"; alertBox.style.color = "#64748b"; 
+            document.getElementById('alertIcon').innerText = "📅"; circle.style.borderColor = "#e2e8f0"; timeTxt.style.color = "#94a3b8";
+        }
+
+
+        // ==========================================
+        // E-VAULT
+        // ==========================================
+        window.openEVault = function() {
+            let contentDiv = document.getElementById('eVaultContent'); 
+            contentDiv.innerHTML = '';
+            
+            if(myRxData.length === 0 && myCertsData.length === 0) { 
+                contentDiv.innerHTML = '<p style="text-align:center; color:var(--text-muted); font-size:1.2rem; font-weight:600; margin-top:3rem;">No records found securely in Cloud.</p>';
+            } else {
+                myCertsData.slice().reverse().forEach(cert => {
+                    contentDiv.innerHTML += `
+                    <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 4px 10px rgba(0,0,0,0.02);">
+                        <h4 style="color: #0284c7; margin-bottom: 1rem; border-bottom: 1px dashed #bfdbfe; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                            <span>📄 Medical Certificate</span> <span style="font-size:0.9rem; color:#475569;">${cert.date}</span>
+                        </h4>
+                        <p style="color: var(--text-main); font-weight: 600; line-height:1.6;">This is to certify that the patient is suffering from <b>${cert.reason}</b> and is advised to take rest for <b>${cert.days} Days</b>.</p>
+                        <p style="text-align:right; font-weight:800; color:#0284c7; margin-top:10px;">- ${cert.doctor}</p>
+                    </div>`;
+                });
+
+                myRxData.slice().reverse().forEach(rx => {
+                    let dispBadge = rx.dispensed ? `<span style="background:#16a34a; color:white; padding:4px 8px; border-radius:8px; font-size:0.8rem;">Dispensed</span>` : `<span style="background:#eab308; color:white; padding:4px 8px; border-radius:8px; font-size:0.8rem;">Pending at Pharmacy</span>`;
+                    let cardHtml = `<div class="rx-card"><h4><span>📅 ${rx.date} ${dispBadge}</span> <span style="color:var(--text-main); font-size:1rem; font-weight: 800;">${rx.doctor}</span></h4><ul>`;
+                    if(rx.medicines) {
+                        rx.medicines.forEach(med => { cardHtml += `<li><span class="med-name">${med.name}</span> <span class="med-dose">${med.dosage} • ${med.days}</span></li>`; });
+                    }
+                    cardHtml += `</ul></div>`; contentDiv.innerHTML += cardHtml;
+                });
+            }
+            document.getElementById('eVaultPopover').showPopover();
+        };
+
+        window.logoutPatient = function() { 
+            localStorage.removeItem('clinic_session'); 
+            window.location.replace('index.html'); 
+        };
+
+        document.addEventListener('mousemove', (e) => { document.documentElement.style.setProperty('--mouse-x', `${e.clientX}px`); document.documentElement.style.setProperty('--mouse-y', `${e.clientY}px`); });
+        const canvas = document.getElementById('bg-canvas'); const ctx = canvas.getContext('2d'); canvas.width = window.innerWidth; canvas.height = window.innerHeight; let particles = []; class Particle { constructor() { this.x = Math.random() * canvas.width; this.y = Math.random() * canvas.height; this.size = Math.random() * 4 + 1; this.speedX = Math.random() * 0.6 - 0.3; this.speedY = Math.random() * 0.6 - 0.3; } update() { this.x += this.speedX; this.y += this.speedY; if(this.x > canvas.width) this.x = 0; else if(this.x < 0) this.x = canvas.width; if(this.y > canvas.height) this.y = 0; else if(this.y < 0) this.y = canvas.height; } draw() { ctx.fillStyle = 'rgba(13, 148, 136, 0.25)'; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill(); } } for(let i=0; i<80; i++) particles.push(new Particle()); function animate() { ctx.clearRect(0, 0, canvas.width, canvas.height); particles.forEach(p => { p.update(); p.draw(); }); requestAnimationFrame(animate); } animate();
+    </script>
+</body>
+</html>

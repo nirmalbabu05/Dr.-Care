@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nurse Triage Station</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <script>
+        const session = JSON.parse(localStorage.getItem('clinic_session'));
+        if (!session || (session.role !== 'nurse' && session.role !== 'admin')) {
+            window.location.replace('index.html');
+        }
+    </script>
+
+    <style>
+        :root { 
+            --bg-base: #f8fafc; --bg-pure: #ffffff; --text-main: #0f172a; --text-muted: #64748b; 
+            --accent-glow: #0d9488; --primary-light: #ccfbf1; 
+            --glass-bg: rgba(255, 255, 255, 0.75); --glass-border: rgba(255, 255, 255, 1); 
+            --shadow-premium: 0 20px 40px -10px rgba(15, 23, 42, 0.08); 
+            --shadow-colored: 0 20px 40px -10px rgba(13, 148, 136, 0.25); 
+            --mouse-x: 50%; --mouse-y: 50%; 
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; } 
+        body { background-color: var(--bg-base); color: var(--text-main); overflow-x: hidden; min-height: 100vh; display: flex; flex-direction: column; }
+        
+        .cursor-glow { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: radial-gradient(circle 600px at var(--mouse-x) var(--mouse-y), rgba(13, 148, 136, 0.15), transparent 60%); z-index: -1; pointer-events: none; transition: 0.1s; }
+        .ambient-blob-1, .ambient-blob-2 { position: fixed; filter: blur(90px); z-index: -2; opacity: 0.7; animation: float-blob 12s infinite alternate; pointer-events: none; }
+        .ambient-blob-1 { top: -10%; left: -10%; width: 50vw; height: 50vw; background: radial-gradient(circle, #fbcfe8, transparent 60%); }
+        .ambient-blob-2 { bottom: -20%; right: -10%; width: 60vw; height: 60vw; background: radial-gradient(circle, #ccfbf1, transparent 60%); animation-delay: -5s; }
+        #bg-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -3; pointer-events: none; opacity: 0.8; }
+
+        .navbar { display: flex; justify-content: space-between; align-items: center; padding: 1rem 5%; background: var(--glass-bg); backdrop-filter: blur(20px); border-bottom: 1px solid var(--glass-border); position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 20px rgba(0,0,0,0.03); }
+        .logo { font-size: 1.5rem; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 8px; cursor: pointer; } 
+        .logo-icon { color: var(--accent-glow); font-size: 1.8rem; }
+        .nav-actions { display: flex; gap: 1.2rem; align-items: center; } 
+        .dr-profile-nav { display: flex; align-items: center; gap: 10px; background: var(--bg-pure); padding: 5px 15px 5px 5px; border-radius: 50px; box-shadow: var(--shadow-premium); border: 1px solid var(--glass-border); height: 46px;} 
+        .avatar { width: 36px; height: 36px; border-radius: 50%; background: #fbcfe8; display: flex; justify-content: center; align-items: center; font-size: 1.2rem; }
+        
+        .btn-danger { background: #fef2f2; color: #ef4444; border: 1px solid #fecaca; padding: 0.8rem 1.5rem; border-radius: 12px; font-weight: 700; cursor: pointer; transition: all 0.3s ease; height: 46px; display: flex; align-items: center; justify-content: center;} 
+        .btn-danger:hover { transform: translateY(-2px); background: #ef4444; color: white;}
+        .btn-primary { background: var(--accent-glow); color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 12px; font-weight: 700; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-colored);}
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 20px 40px -10px rgba(13, 148, 136, 0.4); }
+
+        .container { flex: 1; max-width: 1200px; margin: auto; padding: 2rem 5%; width: 100%;} 
+        .dashboard-header { margin-bottom: 2.5rem; display: flex; justify-content: space-between; align-items: center;} 
+        .dashboard-header h1 { font-size: 2.5rem; font-weight: 800; letter-spacing: -1px; }
+        
+        .glass-panel { background: var(--glass-bg); backdrop-filter: blur(15px); border: 1px solid var(--glass-border); border-radius: 30px; padding: 2.5rem; box-shadow: var(--shadow-premium); }
+        
+        .data-table { width: 100%; border-collapse: collapse; margin-top: 1.5rem;} 
+        .data-table th { text-align: left; padding: 1.2rem 1rem; color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; border-bottom: 2px solid var(--glass-border); font-weight: 800;} 
+        .data-table td { padding: 1.2rem 1rem; border-bottom: 1px solid var(--glass-border); vertical-align: middle; font-weight: 600; font-size: 0.95rem;}
+        
+        .badge { padding: 8px 14px; border-radius: 50px; font-size: 0.85rem; font-weight: 700; display: inline-block; } 
+        .badge-blue { background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd;}
+
+        .btn-action-vitals { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; padding: 8px 16px; border-radius: 12px; font-size: 0.9rem; font-weight: 800; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 8px;}
+        .btn-action-vitals:hover { background: #16a34a; color: white; box-shadow: 0 4px 15px rgba(22, 163, 74, 0.3);}
+        .btn-action-edit { background: #f8fafc; color: var(--text-muted); border: 1px solid #cbd5e1; padding: 8px 16px; border-radius: 12px; font-size: 0.9rem; font-weight: 800; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 8px;}
+        .btn-action-edit:hover { background: #e2e8f0; color: var(--text-main); }
+
+        [popover] { margin: auto; padding: 2.5rem; background: var(--glass-bg); backdrop-filter: blur(25px); border: 1px solid var(--glass-border); border-radius: 24px; color: var(--text-main); width: 90%; max-width: 550px; box-shadow: 0 50px 100px -20px rgba(13, 148, 136, 0.25); }
+        [popover]::backdrop { background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(8px); }
+        .close-btn { float: right; background: none; border: none; font-size: 1.8rem; cursor: pointer; color: var(--text-muted); transition: 0.2s; line-height: 1;}
+        .close-btn:hover { color: #ef4444; }
+        
+        .input-group { margin-bottom: 1.5rem; text-align: left; } 
+        .input-group label { display: block; font-size: 0.85rem; font-weight: 800; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;} 
+        .modern-input { width: 100%; padding: 1.2rem; background: var(--bg-pure); border: 1px solid #e2e8f0; border-radius: 12px; font-size: 1rem; outline: none; transition: 0.3s; font-weight: 600; color: var(--text-main);}
+        .modern-input:focus { border-color: var(--accent-glow); box-shadow: 0 0 0 3px var(--primary-light);}
+
+        .main-footer { background: var(--glass-bg); backdrop-filter: blur(20px); border-top: 1px solid var(--glass-border); padding: 2rem 5%; text-align: center; margin-top: auto; }
+        @media (max-width: 1024px) { .data-table {display: block; overflow-x: auto;} .dashboard-header { flex-direction: column; align-items: flex-start; gap: 10px;} }
+    </style>
+</head>
+<body>
+    <div class="cursor-glow" id="cursorGlow"></div>
+    <div class="ambient-blob-1"></div>
+    <div class="ambient-blob-2"></div>
+    <canvas id="bg-canvas"></canvas>
+
+    <nav class="navbar">
+        <div class="logo" onclick="window.location.href='index.html'"><span class="logo-icon">✤</span> Dr. Care</div>
+        <div class="nav-actions">
+            <div class="dr-profile-nav">
+                <div class="avatar"><i class="ph-fill ph-heartbeat" style="color: #db2777;"></i></div>
+                <span style="font-weight: 700; padding-right: 10px; color: var(--text-main);" id="nurseNavName">Nurse</span>
+            </div>
+            <button class="btn-danger" onclick="window.logout()">Sign Out</button>
+        </div>
+    </nav>
+
+    <main class="container">
+        <div class="dashboard-header">
+            <div>
+                <h1>Pre-Consultation Triage</h1>
+                <p id="dateDisplay" style="color: var(--text-muted); font-weight: 600; margin-top: 5px;"></p>
+            </div>
+        </div>
+
+        <div class="glass-panel">
+            <h2 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between;">
+                Live Waiting Queue 
+                <span class="badge badge-blue" style="font-size: 1rem; background: var(--primary-light); color: var(--accent-glow); border-color: var(--accent-glow);" id="waitingCount">0 Waiting</span>
+            </h2>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Token</th>
+                        <th>Patient Details</th>
+                        <th>Told Time</th>
+                        <th>Vitals Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <tr><td colspan="5" style="text-align:center; padding: 3rem; color: var(--text-muted);">Syncing from Cloud...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <div id="vitalsPopover" popover>
+        <button class="close-btn" popovertarget="vitalsPopover" popovertargetaction="hide">×</button>
+        <h2 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 0.5rem; color: var(--accent-glow); display: flex; align-items: center; gap: 10px;">
+            <i class="ph-fill ph-stethoscope"></i> Record Vitals
+        </h2>
+        <p style="color: var(--text-main); font-weight: 700; margin-bottom: 2rem; font-size: 1.1rem;" id="vitalsPatientName">Patient: --</p>
+        
+        <input type="hidden" id="vitalsToken">
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+            <div class="input-group">
+                <label>Blood Pressure (mmHg)</label>
+                <input type="text" id="vitalBP" class="modern-input" placeholder="e.g. 120/80">
+            </div>
+            <div class="input-group">
+                <label>Temperature (°F)</label>
+                <input type="number" id="vitalTemp" class="modern-input" placeholder="e.g. 98.6">
+            </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+            <div class="input-group">
+                <label>SpO2 (%)</label>
+                <input type="number" id="vitalSpo2" class="modern-input" placeholder="e.g. 98">
+            </div>
+            <div class="input-group">
+                <label>Weight (kg)</label>
+                <input type="number" id="vitalWeight" class="modern-input" placeholder="e.g. 65">
+            </div>
+        </div>
+        
+        <button class="btn-primary" id="saveVitalsBtn" style="width: 100%; margin-top: 1.5rem; padding: 1.2rem; font-size: 1.1rem;" onclick="window.saveVitals()">Save & Sync to Doctor</button>
+    </div>
+
+    <footer class="main-footer"><p style="color: var(--text-muted); font-size: 0.9rem; font-weight: 600;">Secure Medical Network • Triage Terminal</p></footer>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getDatabase, ref, onValue, set, get, child } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDFmxplnyx8_YZfeaAioPcAdn0d5jwPO_g",
+            authDomain: "drcare-f6c66.firebaseapp.com",
+            databaseURL: "https://drcare-f6c66-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "drcare-f6c66",
+            storageBucket: "drcare-f6c66.firebasestorage.app",
+            messagingSenderId: "833833626441",
+            appId: "1:833833626441:web:974c0ecf65419444804898"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const dbRef = ref(db);
+
+        const userSession = JSON.parse(localStorage.getItem('clinic_session'));
+        document.getElementById('nurseNavName').innerText = session.name.split(' ')[0] || "Nurse";
+        document.getElementById('dateDisplay').innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+        window.logout = function() { localStorage.removeItem('clinic_session'); window.location.replace('index.html'); };
+
+        let currentQueue = [];
+
+        onValue(ref(db, 'clinicQueue'), snap => {
+            let q = snap.val() || [];
+            currentQueue = Object.values(q).filter(x=>x!==null);
+            window.updateUI();
+        });
+
+        window.updateUI = function() {
+            const tbody = document.getElementById('tableBody'); tbody.innerHTML = '';
+            
+            if(currentQueue.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 3rem; color: var(--text-muted);">No patients currently in waiting queue.</td></tr>';
+            }
+
+            currentQueue.forEach(p => { 
+                let vitalsStatus = p.vitals ? `<span style="color:#16a34a; font-weight:800; display:flex; align-items:center; gap:5px;"><i class="ph-fill ph-check-circle"></i> Recorded</span>` : `<span style="color:#ef4444; font-weight:800; display:flex; align-items:center; gap:5px;"><i class="ph-fill ph-warning-circle"></i> Pending</span>`;
+                
+                let actionBtn = p.vitals 
+                    ? `<button class="btn-action-edit" onclick="window.openVitalsModal(${p.token}, '${p.name}')"><i class="ph-fill ph-pencil-simple"></i> Edit</button>` 
+                    : `<button class="btn-action-vitals" onclick="window.openVitalsModal(${p.token}, '${p.name}')"><i class="ph-fill ph-stethoscope"></i> Add Vitals</button>`;
+
+                tbody.innerHTML += `
+                <tr>
+                    <td><span class="badge badge-blue" style="font-size: 1.1rem; padding: 10px 18px;">#${p.token}</span></td>
+                    <td><span style="font-size: 1.1rem; font-weight:800; color:var(--text-main);">${p.name}</span><br><span style="color:var(--text-muted); font-size:0.85rem;">${p.issue}</span></td>
+                    <td><span style="font-size: 1rem; font-weight:800; color:#16a34a;">${p.displayTime}</span></td>
+                    <td>${vitalsStatus}</td>
+                    <td>${actionBtn}</td>
+                </tr>`; 
+            });
+            document.getElementById('waitingCount').innerText = `${currentQueue.length} Waiting`;
+        }
+
+        window.openVitalsModal = function(token, name) {
+            document.getElementById('vitalsToken').value = token;
+            document.getElementById('vitalsPatientName').innerHTML = `<i class="ph-fill ph-user"></i> ${name} (Token #${token})`;
+            
+            let patient = currentQueue.find(x => x.token === token);
+            if(patient && patient.vitals) {
+                document.getElementById('vitalBP').value = patient.vitals.bp || '';
+                document.getElementById('vitalTemp').value = patient.vitals.temp || '';
+                document.getElementById('vitalSpo2').value = patient.vitals.spo2 || '';
+                document.getElementById('vitalWeight').value = patient.vitals.weight || '';
+            } else {
+                document.getElementById('vitalBP').value = ''; document.getElementById('vitalTemp').value = '';
+                document.getElementById('vitalSpo2').value = ''; document.getElementById('vitalWeight').value = '';
+            }
+            document.getElementById('vitalsPopover').showPopover();
+        }
+
+        window.saveVitals = async function() {
+            let token = parseInt(document.getElementById('vitalsToken').value);
+            let bp = document.getElementById('vitalBP').value.trim();
+            let temp = document.getElementById('vitalTemp').value.trim();
+            let spo2 = document.getElementById('vitalSpo2').value.trim();
+            let weight = document.getElementById('vitalWeight').value.trim();
+
+            if(!bp && !temp) return alert("Please enter at least Blood Pressure or Temperature.");
+
+            let btn = document.getElementById('saveVitalsBtn');
+            btn.innerHTML = 'Syncing...';
+
+            let q = [...currentQueue];
+            let index = q.findIndex(x => x.token === token);
+            if(index !== -1) {
+                q[index].vitals = { bp, temp, spo2, weight };
+                await set(ref(db, 'clinicQueue'), q);
+                
+                btn.innerHTML = '✓ Synced Successfully!'; btn.style.background = '#10b981';
+                setTimeout(() => { 
+                    document.getElementById('vitalsPopover').hidePopover(); 
+                    btn.innerHTML = 'Save & Sync to Doctor'; btn.style.background = 'var(--accent-glow)';
+                }, 1000);
+            }
+        }
+
+        document.addEventListener('mousemove', (e) => { document.documentElement.style.setProperty('--mouse-x', `${e.clientX}px`); document.documentElement.style.setProperty('--mouse-y', `${e.clientY}px`); });
+        const canvas = document.getElementById('bg-canvas'); const ctx = canvas.getContext('2d'); canvas.width = window.innerWidth; canvas.height = window.innerHeight; let particles = []; class Particle { constructor() { this.x = Math.random() * canvas.width; this.y = Math.random() * canvas.height; this.size = Math.random() * 4 + 1; this.speedX = Math.random() * 0.6 - 0.3; this.speedY = Math.random() * 0.6 - 0.3; } update() { this.x += this.speedX; this.y += this.speedY; if(this.x > canvas.width) this.x = 0; else if(this.x < 0) this.x = canvas.width; if(this.y > canvas.height) this.y = 0; else if(this.y < 0) this.y = canvas.height; } draw() { ctx.fillStyle = 'rgba(13, 148, 136, 0.25)'; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill(); } } for(let i=0; i<80; i++) particles.push(new Particle()); function animate() { ctx.clearRect(0, 0, canvas.width, canvas.height); particles.forEach(p => { p.update(); p.draw(); }); requestAnimationFrame(animate); } animate();
+    </script>
+</body>
+</html>

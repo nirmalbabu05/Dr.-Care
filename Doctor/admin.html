@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Control Panel | Dr. Care</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        :root { 
+            --bg-base: #f8fafc; --bg-pure: #ffffff; --text-main: #0f172a; --text-muted: #64748b; 
+            --accent-glow: #0d9488; --primary-light: #ccfbf1; 
+            --glass-bg: rgba(255, 255, 255, 0.85); --glass-border: rgba(255, 255, 255, 1); 
+            --shadow-premium: 0 20px 40px -10px rgba(15, 23, 42, 0.08); 
+            --mouse-x: 50%; --mouse-y: 50%; 
+            --danger: #ef4444; --warning: #f59e0b;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; } 
+        html { scroll-behavior: smooth; }
+        body { background-color: var(--bg-base); color: var(--text-main); overflow-x: hidden; min-height: 100vh; display: flex; flex-direction: column; }
+        
+        .cursor-glow { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: radial-gradient(circle 600px at var(--mouse-x) var(--mouse-y), rgba(13, 148, 136, 0.12), transparent 60%); z-index: -1; pointer-events: none; transition: 0.1s; }
+        #bg-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -3; pointer-events: none; opacity: 0.8; }
+
+        .navbar { display: flex; justify-content: space-between; align-items: center; padding: 1rem 5%; background: var(--glass-bg); backdrop-filter: blur(20px); border-bottom: 1px solid var(--glass-border); position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 20px rgba(0,0,0,0.03); }
+        .logo { font-size: 1.5rem; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 8px; cursor: pointer; } 
+        .logo-icon { color: var(--accent-glow); font-size: 1.8rem; }
+        .nav-actions { display: flex; gap: 1rem; align-items: center; } 
+        .dr-profile-nav { display: flex; align-items: center; gap: 10px; background: var(--bg-pure); padding: 5px 15px 5px 5px; border-radius: 50px; box-shadow: var(--shadow-premium); border: 1px solid var(--glass-border); height: 46px;} 
+        .avatar { width: 36px; height: 36px; border-radius: 50%; background: #fef08a; display: flex; justify-content: center; align-items: center; font-size: 1.2rem; }
+        
+        .btn-outline { background: var(--bg-pure); color: var(--text-main); border: 1px solid var(--glass-border); padding: 0.8rem 1.2rem; border-radius: 12px; font-weight: 700; cursor: pointer; box-shadow: var(--shadow-premium); transition: all 0.3s ease; height: 46px; display: flex; align-items: center; justify-content: center; gap: 8px;} 
+        .btn-outline:hover { color: var(--accent-glow); border-color: var(--accent-glow); }
+        .btn-danger { background: #fef2f2; color: #ef4444; border: 1px solid #fecaca; padding: 0.8rem 1.2rem; border-radius: 12px; font-weight: 700; cursor: pointer; transition: 0.3s; height: 46px; display: flex; align-items: center; justify-content: center; gap: 5px;} 
+        .btn-danger:hover { background: #ef4444; color: white;}
+        .btn-primary { background: var(--accent-glow); color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 12px; font-weight: 700; cursor: pointer; transition: 0.3s; height: 46px; display: flex; align-items: center; justify-content: center;} 
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 15px 30px rgba(13, 148, 136, 0.3);}
+
+        .container { flex: 1; max-width: 1400px; margin: auto; padding: 2rem 5%; width: 100%;} 
+        .dashboard-header { margin-bottom: 2.5rem; display: flex; justify-content: space-between; align-items: center;} 
+        .dashboard-header h1 { font-size: 2.5rem; font-weight: 800; letter-spacing: -1px; }
+        
+        .glass-panel { background: var(--glass-bg); backdrop-filter: blur(15px); border: 1px solid var(--glass-border); border-radius: 30px; padding: 2.5rem; box-shadow: var(--shadow-premium); margin-bottom: 2rem;}
+        .control-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 2rem; }
+        
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; }
+        .stat-card { background: var(--bg-pure); border: 1px solid var(--glass-border); border-radius: 20px; padding: 1.5rem; box-shadow: 0 4px 15px rgba(0,0,0,0.02); transition: 0.3s; position: relative; overflow: hidden;}
+        .stat-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-premium); }
+        .stat-card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: var(--accent-glow); opacity: 0.8;}
+        .stat-title { color: var(--text-muted); font-size: 0.85rem; font-weight: 800; text-transform: uppercase; margin-bottom: 10px;}
+        .stat-value { font-size: 3rem; font-weight: 900; line-height: 1; color: var(--text-main);}
+
+        .data-list { list-style: none; display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto; padding-right: 10px;}
+        .data-list::-webkit-scrollbar { width: 6px; }
+        .data-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .list-item { display: flex; justify-content: space-between; align-items: center; background: var(--bg-pure); border: 1px solid var(--glass-border); padding: 1rem 1.5rem; border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
+        .item-title { font-weight: 800; font-size: 1.1rem; color: var(--text-main);}
+        .item-sub { font-size: 0.85rem; color: var(--text-muted); font-weight: 600;}
+        .status-badge { background: var(--primary-light); color: var(--accent-glow); padding: 6px 12px; border-radius: 50px; font-size: 0.8rem; font-weight: 800; border: 1px solid var(--accent-glow);}
+
+        .input-group { margin-bottom: 1.2rem; text-align: left; } 
+        .input-group label { display: block; font-size: 0.9rem; font-weight: 700; color: var(--text-muted); margin-bottom: 5px; }
+        .modern-input { width: 100%; padding: 1rem; background: var(--bg-pure); border: 1px solid #e2e8f0; border-radius: 12px; font-size: 1rem; outline: none; transition: 0.3s; font-weight: 600;} 
+        .modern-input:focus { border-color: var(--accent-glow); box-shadow: 0 0 0 4px var(--primary-light);}
+
+        .danger-box { border: 1px solid #fecaca; background: #fff5f5; border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem;}
+        .danger-title { color: var(--danger); font-weight: 800; margin-bottom: 5px; font-size: 1.1rem;}
+        .warning-box { border: 1px solid #fde68a; background: #fffbeb; border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem;}
+        .warning-title { color: #d97706; font-weight: 800; margin-bottom: 5px; font-size: 1.1rem;}
+
+        @media (max-width: 1024px) { .control-grid { grid-template-columns: 1fr; } }
+    </style>
+    <script>
+        const session = JSON.parse(localStorage.getItem('clinic_session'));
+        if (!session || session.role !== 'admin') {
+            alert("Unauthorized Access! Owner credentials required.");
+            window.location.href = 'index.html';
+        }
+    </script>
+</head>
+<body>
+
+    <div class="cursor-glow" id="cursorGlow"></div>
+    <canvas id="bg-canvas"></canvas>
+
+    <nav class="navbar">
+        <div class="logo" onclick="window.location.href='index.html'">
+            <span class="logo-icon">✤</span> Dr. Care 
+            <span style="color:var(--text-muted); font-weight:600; font-size:1.2rem; margin-left:10px;">| System Admin</span>
+        </div>
+        <div class="nav-actions">
+            <button class="btn-outline" onclick="window.location.href='index.html'"><i class="ph-bold ph-house"></i> Public Home</button>
+            <div class="dr-profile-nav">
+                <div class="avatar" style="background: #fcd34d;">👑</div>
+                <span style="font-weight: 700; padding-right: 10px;">Owner</span>
+            </div>
+            <button class="btn-danger" onclick="window.logout()">Logout</button>
+        </div>
+    </nav>
+
+    <main class="container">
+        <div class="dashboard-header">
+            <div>
+                <h1>System Master Control</h1>
+                <p style="color: var(--text-muted); font-weight: 600; margin-top: 5px;">Real-time Cloud Database, Staff HR & Website Management</p>
+            </div>
+            <button class="btn-outline" onclick="window.location.reload()"><i class="ph-bold ph-cloud-check"></i> Cloud Sync Active</button>
+        </div>
+
+        <div class="glass-panel stats-grid">
+            <div class="stat-card" style="border-top-color: #3b82f6;">
+                <div class="stat-title">Total Tokens Issued</div>
+                <div class="stat-value" id="s-tokens">0</div>
+            </div>
+            <div class="stat-card" style="border-top-color: #f59e0b;">
+                <div class="stat-title">Currently Waiting</div>
+                <div class="stat-value" id="s-waiting" style="color: #d97706;">0</div>
+            </div>
+            <div class="stat-card" style="border-top-color: #10b981;">
+                <div class="stat-title">Consultations Done</div>
+                <div class="stat-value" id="s-completed" style="color: #059669;">0</div>
+            </div>
+            <div class="stat-card" style="border-top-color: #8b5cf6;">
+                <div class="stat-title">Active Prescriptions</div>
+                <div class="stat-value" id="s-rx" style="color: #7c3aed;">0</div>
+            </div>
+        </div>
+
+        <div class="control-grid">
+            
+            <div class="glass-panel">
+                <h2 style="font-size: 1.5rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px;">
+                    <i class="ph-fill ph-users-three" style="color: var(--accent-glow);"></i> Staff Access Management
+                </h2>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                    <div style="background: #f8fafc; padding: 1.5rem; border-radius: 20px; border: 1px solid #e2e8f0;">
+                        <h3 style="margin-bottom: 1rem; font-size: 1.1rem;">Create Internal Account</h3>
+                        <div class="input-group">
+                            <label>Full Name</label>
+                            <input type="text" id="hrName" class="modern-input" placeholder="Enter Full Name">
+                        </div>
+                        <div class="input-group">
+                            <label>Login ID (Username)</label>
+                            <input type="text" id="hrId" class="modern-input" placeholder="Enter Login ID">
+                        </div>
+                        <div class="input-group">
+                            <label>Password</label>
+                            <input type="password" id="hrPass" class="modern-input" placeholder="Enter Password">
+                        </div>
+                        <div class="input-group">
+                            <label>Role</label>
+                            <select id="hrRole" class="modern-input">
+                                <option value="doctor">Doctor</option>
+                                <option value="staff">Receptionist / Staff</option>
+                                <option value="nurse">Nurse</option>
+                            </select>
+                        </div>
+                        <button class="btn-primary" style="width: 100%; margin-top: 0.5rem;" onclick="window.createStaff()">Create Account</button>
+                    </div>
+
+                    <div>
+                        <h3 style="margin-bottom: 1rem; font-size: 1.1rem;">Active Internal Users</h3>
+                        <ul class="data-list" id="staffView" style="max-height: 350px;">
+                            <div style="text-align: center; color: var(--text-muted); padding: 2rem;">Loading from Cloud...</div>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-panel">
+                <h2 style="font-size: 1.5rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px; color: var(--danger);">
+                    <i class="ph-fill ph-warning-circle"></i> System Controls
+                </h2>
+                
+                <div class="warning-box">
+                    <div class="warning-title">End of Day (EOD) Reset</div>
+                    <p style="font-size:0.85rem; color:#92400e; margin-bottom:15px; font-weight:600;">Clears active waiting queue and resets token counter to 1. Completed patient records will be preserved.</p>
+                    <button class="btn-outline" style="width:100%; border-color:#d97706; color:#b45309; background: white;" onclick="window.endOfDayReset()">Execute EOD Reset</button>
+                </div>
+
+                <div class="danger-box">
+                    <div class="danger-title">Wipe Entire Database</div>
+                    <p style="font-size:0.85rem; color:#991b1b; margin-bottom:15px; font-weight:600;">DEVELOPER ONLY: Deletes ALL data including history, settings, and prescriptions from Google Cloud. Cannot be undone.</p>
+                    <button class="btn-danger" style="width:100%; background: white;" onclick="window.factoryReset()"><i class="ph-bold ph-trash"></i> Factory Reset</button>
+                </div>
+            </div>
+
+            <div class="glass-panel" style="grid-column: 1 / -1;">
+                <h2 style="font-size: 1.5rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px;">
+                    <i class="ph-fill ph-browser" style="color: var(--accent-glow);"></i> Website Content Manager (CMS)
+                </h2>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                    <div style="background: #f8fafc; padding: 1.5rem; border-radius: 20px; border: 1px solid #e2e8f0;">
+                        <h3 style="margin-bottom: 1rem; font-size: 1.1rem; display:flex; justify-content:space-between; align-items:center;">Manage Doctors <span style="font-size:0.8rem; background:var(--accent-glow); color:white; padding:4px 8px; border-radius:8px; font-weight:800;">LIVE</span></h3>
+                        <div class="input-group"><label>Doctor Name</label><input type="text" id="cmsDocName" class="modern-input" placeholder="Enter Doctor Name"></div>
+                        <div class="input-group"><label>Designation</label><input type="text" id="cmsDocRole" class="modern-input" placeholder="Enter Designation"></div>
+                        <div class="input-group"><label>Specialty Badge</label><input type="text" id="cmsDocBadge" class="modern-input" placeholder="Enter Specialty"></div>
+                        <div class="input-group"><label>Image URL (Optional)</label><input type="text" id="cmsDocImg" class="modern-input" placeholder="Enter Image URL (Optional)"></div>
+                        <button class="btn-outline" style="width: 100%; margin-bottom: 1rem; border-color:var(--accent-glow); color:var(--accent-glow);" onclick="window.addCmsDoctor()">+ Add Doctor to Website</button>
+                        
+                        <ul class="data-list" id="cmsDoctorList" style="max-height: 200px;"></ul>
+                    </div>
+
+                    <div style="background: #f8fafc; padding: 1.5rem; border-radius: 20px; border: 1px solid #e2e8f0;">
+                        <h3 style="margin-bottom: 1rem; font-size: 1.1rem; display:flex; justify-content:space-between; align-items:center;">Manage Testimonials <span style="font-size:0.8rem; background:var(--accent-glow); color:white; padding:4px 8px; border-radius:8px; font-weight:800;">LIVE</span></h3>
+                        <div class="input-group"><label>Patient Name</label><input type="text" id="cmsRevName" class="modern-input" placeholder="Enter Patient Name"></div>
+                        <div class="input-group"><label>Review Text</label><input type="text" id="cmsRevText" class="modern-input" placeholder="Enter Review Text"></div>
+                        <div style="display:flex; gap:10px;">
+                            <div class="input-group" style="flex:1;"><label>Initial</label><input type="text" id="cmsRevInitial" class="modern-input" placeholder="Initial" maxlength="1"></div>
+                            <div class="input-group" style="flex:1;"><label>Stars</label>
+                                <select id="cmsRevStars" class="modern-input"><option value="★★★★★">5 Stars</option><option value="★★★★☆">4 Stars</option></select>
+                            </div>
+                        </div>
+                        <button class="btn-outline" style="width: 100%; margin-bottom: 1rem; border-color:var(--accent-glow); color:var(--accent-glow);" onclick="window.addCmsReview()">+ Add Review to Website</button>
+                        
+                        <ul class="data-list" id="cmsReviewList" style="max-height: 200px;"></ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-panel" style="grid-column: 1 / -1;">
+                <h2 style="font-size: 1.5rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px;">
+                    <i class="ph-fill ph-database" style="color: var(--accent-glow);"></i> Patient Data Explorer
+                </h2>
+                <div style="display: flex; gap: 10px; margin-bottom: 1.5rem; flex-wrap: wrap;">
+                    <button class="btn-outline" style="border-color: #3b82f6; color: #2563eb;" onclick="window.renderData('queue')">Queue List</button>
+                    <button class="btn-outline" style="border-color: #10b981; color: #059669;" onclick="window.renderData('history')">Completed History</button>
+                    <button class="btn-outline" style="border-color: #8b5cf6; color: #7c3aed;" onclick="window.renderData('rx')">Prescriptions</button>
+                </div>
+                <ul class="data-list" id="dataView" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    </ul>
+            </div>
+
+        </div>
+    </main>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getDatabase, ref, set, get, child, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDFmxplnyx8_YZfeaAioPcAdn0d5jwPO_g",
+            authDomain: "drcare-f6c66.firebaseapp.com",
+            databaseURL: "https://drcare-f6c66-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "drcare-f6c66",
+            storageBucket: "drcare-f6c66.firebasestorage.app",
+            messagingSenderId: "833833626441",
+            appId: "1:833833626441:web:974c0ecf65419444804898"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const dbRef = ref(db);
+
+        window.logout = function() {
+            localStorage.removeItem('clinic_session');
+            window.location.href = 'index.html';
+        };
+
+        // ==========================================
+        // 1. LIVE STATS LISTENERS
+        // ==========================================
+        onValue(ref(db, 'tokenCounter'), (snap) => {
+            let count = snap.val() || 1;
+            document.getElementById('s-tokens').innerText = count > 1 ? count - 1 : 0;
+        });
+
+        onValue(ref(db, 'clinicQueue'), (snap) => {
+            let queue = snap.val() ? Object.values(snap.val()).filter(q=>q!==null) : [];
+            document.getElementById('s-waiting').innerText = queue.length;
+            if(window.currentExplorerTab === 'queue') window.renderData('queue');
+        });
+
+        onValue(ref(db, 'completedPatients'), (snap) => {
+            let history = snap.val() ? Object.values(snap.val()).filter(h=>h!==null) : [];
+            document.getElementById('s-completed').innerText = history.length;
+            if(window.currentExplorerTab === 'history') window.renderData('history');
+        });
+
+        onValue(ref(db, 'clinicPrescriptions'), (snap) => {
+            let rxData = snap.val() || {};
+            let activeRxCount = 0;
+            for(let phone in rxData) {
+                let list = Object.values(rxData[phone]).filter(r=>r!==null);
+                list.forEach(rx => { if(!rx.dispensed) activeRxCount++; });
+            }
+            document.getElementById('s-rx').innerText = activeRxCount;
+            if(window.currentExplorerTab === 'rx') window.renderData('rx');
+        });
+
+        // ==========================================
+        // 2. WEBSITE CMS LISTENERS & FUNCTIONS
+        // ==========================================
+        onValue(ref(db, 'cmsDoctors'), (snap) => {
+            let docs = snap.val() ? Object.values(snap.val()).filter(d=>d!==null) : [];
+            let docView = document.getElementById('cmsDoctorList'); docView.innerHTML = '';
+            docs.forEach(d => {
+                docView.innerHTML += `
+                <li class="list-item" style="padding: 10px;">
+                    <div><div class="item-title" style="font-size:0.95rem;">${d.name}</div><div class="item-sub">${d.badge}</div></div>
+                    <button class="btn-danger" style="padding: 4px 8px; height:auto; font-size:0.8rem;" onclick="window.deleteCmsItem('cmsDoctors', ${d.id})">Del</button>
+                </li>`;
+            });
+        });
+
+        onValue(ref(db, 'cmsReviews'), (snap) => {
+            let revs = snap.val() ? Object.values(snap.val()).filter(r=>r!==null) : [];
+            let revView = document.getElementById('cmsReviewList'); revView.innerHTML = '';
+            revs.forEach(r => {
+                revView.innerHTML += `
+                <li class="list-item" style="padding: 10px;">
+                    <div><div class="item-title" style="font-size:0.95rem;">${r.name} ${r.stars}</div><div class="item-sub">${r.text.substring(0,30)}...</div></div>
+                    <button class="btn-danger" style="padding: 4px 8px; height:auto; font-size:0.8rem;" onclick="window.deleteCmsItem('cmsReviews', ${r.id})">Del</button>
+                </li>`;
+            });
+        });
+
+        window.addCmsDoctor = async function() {
+            let name = document.getElementById('cmsDocName').value.trim(); 
+            let role = document.getElementById('cmsDocRole').value.trim();
+            let badge = document.getElementById('cmsDocBadge').value.trim(); 
+            let img = document.getElementById('cmsDocImg').value.trim() || "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=600&q=80";
+            if(!name || !role || !badge) return alert("Fill Name, Role, and Badge.");
+            
+            const snap = await get(child(dbRef, 'cmsDoctors'));
+            let docs = snap.exists() ? Object.values(snap.val()).filter(d=>d!==null) : [];
+            docs.push({ id: Date.now(), name, role, badge, img });
+            await set(ref(db, 'cmsDoctors'), docs);
+            
+            document.getElementById('cmsDocName').value = ''; document.getElementById('cmsDocRole').value = ''; 
+            document.getElementById('cmsDocBadge').value = ''; document.getElementById('cmsDocImg').value = '';
+        };
+
+        window.addCmsReview = async function() {
+            let name = document.getElementById('cmsRevName').value.trim(); 
+            let text = document.getElementById('cmsRevText').value.trim();
+            let initial = document.getElementById('cmsRevInitial').value.trim() || name.charAt(0); 
+            let stars = document.getElementById('cmsRevStars').value;
+            if(!name || !text) return alert("Fill Name and Review.");
+            
+            let colors = ["#0d9488", "#3b82f6", "#f59e0b", "#db2777", "#8b5cf6"]; 
+            let randomColor = colors[Math.floor(Math.random() * colors.length)];
+            
+            const snap = await get(child(dbRef, 'cmsReviews'));
+            let revs = snap.exists() ? Object.values(snap.val()).filter(r=>r!==null) : [];
+            revs.push({ id: Date.now(), name, initial: initial.toUpperCase(), text, stars, color: randomColor });
+            await set(ref(db, 'cmsReviews'), revs);
+            
+            document.getElementById('cmsRevName').value = ''; document.getElementById('cmsRevText').value = ''; document.getElementById('cmsRevInitial').value = '';
+        };
+
+        window.deleteCmsItem = async function(key, id) {
+            if(confirm("Delete this content from the cloud website?")) {
+                const snap = await get(child(dbRef, key));
+                let data = snap.exists() ? Object.values(snap.val()).filter(item => item !== null && item.id !== id) : [];
+                await set(ref(db, key), data);
+            }
+        };
+
+        // ==========================================
+        // 3. STAFF HR MANAGEMENT
+        // ==========================================
+        onValue(ref(db, 'clinicUsers'), (snap) => {
+            let usersDict = snap.val() || {};
+            
+            let users = Object.keys(usersDict).map(key => {
+                if (usersDict[key]) {
+                    usersDict[key].id = key; 
+                    return usersDict[key];
+                }
+                return null;
+            }).filter(u => u !== null);
+
+            const view = document.getElementById('staffView');
+            view.innerHTML = '';
+            
+            const staffList = users.filter(u => u.role !== 'patient' && u.id !== 'admin_master');
+            
+            if(staffList.length === 0) {
+                view.innerHTML = '<p style="color:var(--text-muted); font-size:0.9rem;">No internal accounts created yet.</p>';
+                return;
+            }
+            
+            staffList.forEach(user => {
+                let badgeColor = user.role === 'doctor' ? '#3b82f6' : (user.role === 'nurse' ? '#db2777' : '#10b981');
+                view.innerHTML += `
+                <li class="list-item" style="padding: 0.8rem 1rem;">
+                    <div>
+                        <div class="item-title" style="font-size:1rem;">${user.name}</div>
+                        <div class="item-sub">ID: ${user.id} | <span style="color:${badgeColor}; font-weight:800; text-transform:uppercase;">${user.role}</span></div>
+                    </div>
+                    <button class="btn-danger" style="padding: 6px 12px; height:auto; font-size:0.8rem;" onclick="window.deleteStaff('${user.id}')">Revoke</button>
+                </li>`;
+            });
+        });
+
+        window.createStaff = async function() {
+            let name = document.getElementById('hrName').value.trim();
+            let id = document.getElementById('hrId').value.trim();
+            let pass = document.getElementById('hrPass').value.trim();
+            let role = document.getElementById('hrRole').value;
+
+            if(!name || !id || !pass) return alert("Fill all fields to create an account.");
+
+            const snap = await get(child(dbRef, `clinicUsers/${id}`));
+            if(snap.exists()) return alert("This Login ID already exists! Choose a different one.");
+
+            let url = role === 'doctor' ? 'doctor.html' : (role === 'nurse' ? 'nurse.html' : 'staff.html');
+            
+            await set(ref(db, `clinicUsers/${id}`), { id: id, pass: pass, role: role, name: name, url: url });
+            
+            document.getElementById('hrName').value = ''; document.getElementById('hrId').value = ''; document.getElementById('hrPass').value = '';
+            alert(`✅ Success! Account created for ${name} (${role}).`);
+        };
+
+        window.deleteStaff = async function(id) {
+            if(confirm(`Are you sure you want to revoke access for ID: ${id}?`)) {
+                await remove(ref(db, `clinicUsers/${id}`));
+            }
+        };
+
+        // ==========================================
+        // 4. DATA EXPLORER & SYSTEM CONTROLS
+        // ==========================================
+        window.currentExplorerTab = 'queue';
+        window.renderData = async function(type) {
+            window.currentExplorerTab = type;
+            const view = document.getElementById('dataView');
+            view.innerHTML = '<p style="color:var(--text-muted); font-weight:600; grid-column:1/-1;">Loading from Cloud...</p>';
+
+            if (type === 'queue') {
+                const snap = await get(child(dbRef, 'clinicQueue'));
+                const queue = snap.exists() ? Object.values(snap.val()).filter(q=>q!==null) : [];
+                view.innerHTML = '';
+                if(queue.length === 0) { view.innerHTML = '<p style="color:var(--text-muted); font-weight:600; grid-column:1/-1;">Queue is empty.</p>'; return; }
+                queue.forEach((p, index) => {
+                    let statusBadge = index === 0 ? '<span class="status-badge">CONSULTING</span>' : '<span class="status-badge" style="background:#fffbeb; color:#d97706; border-color:#d97706;">WAITING</span>';
+                    let outline = index === 0 ? 'border: 2px solid var(--accent-glow);' : '';
+                    view.innerHTML += `
+                    <li class="list-item" style="${outline}">
+                        <div><div class="item-title">#${p.token} - ${p.name}</div><div class="item-sub">Phone: ${p.phone} | Expected: ${p.displayTime}</div></div>
+                        ${statusBadge}
+                    </li>`;
+                });
+            } 
+            else if (type === 'history') {
+                const snap = await get(child(dbRef, 'completedPatients'));
+                const history = snap.exists() ? Object.values(snap.val()).filter(h=>h!==null) : [];
+                view.innerHTML = '';
+                if(history.length === 0) { view.innerHTML = '<p style="color:var(--text-muted); font-weight:600; grid-column:1/-1;">No completed consultations.</p>'; return; }
+                history.slice().reverse().forEach(p => {
+                    view.innerHTML += `
+                    <li class="list-item">
+                        <div><div class="item-title">#${p.token} - ${p.name}</div><div class="item-sub">Consulted at: ${p.realTime}</div></div>
+                        <span class="status-badge" style="background:#ecfdf5; color:#059669; border-color:#059669;">COMPLETED</span>
+                    </li>`;
+                });
+            }
+            else if (type === 'rx') {
+                const snap = await get(child(dbRef, 'clinicPrescriptions'));
+                const rxData = snap.exists() ? snap.val() : {};
+                view.innerHTML = '';
+                let count = 0;
+                for(let phone in rxData) {
+                    let list = Object.values(rxData[phone]).filter(r=>r!==null);
+                    list.forEach(rx => {
+                        count++;
+                        let status = rx.dispensed ? '<span class="status-badge" style="background:#ecfdf5; color:#059669; border-color:#059669;">DISPENSED</span>' : '<span class="status-badge" style="background:#f5f3ff; color:#7c3aed; border-color:#7c3aed;">PENDING</span>';
+                        view.innerHTML += `
+                        <li class="list-item">
+                            <div><div class="item-title">${rx.patientName || 'Patient'}</div><div class="item-sub">${rx.medicines ? rx.medicines.length : 0} Medicines | Date: ${rx.date}</div></div>
+                            ${status}
+                        </li>`;
+                    });
+                }
+                if(count === 0) view.innerHTML = '<p style="color:var(--text-muted); font-weight:600; grid-column:1/-1;">No prescriptions found.</p>';
+            }
+        };
+
+        window.endOfDayReset = async function() {
+            if(confirm("Are you sure you want to run EOD Reset? This will clear the active queue and reset the token counter to 1.")) {
+                await remove(ref(db, 'clinicQueue'));
+                await set(ref(db, 'tokenCounter'), 1);
+                alert("End of Day reset successful. System is ready for tomorrow.");
+            }
+        };
+
+        window.factoryReset = async function() {
+            let pass = prompt("WARNING: This will delete ALL data including staff accounts, history and prescriptions from Google Cloud. Type 'CONFIRM' to proceed:");
+            if (pass === 'CONFIRM') {
+                await remove(ref(db)); 
+                alert("Database wiped completely. Logging you out now.");
+                window.logout(); 
+            } else if (pass !== null) {
+                alert("Action cancelled.");
+            }
+        };
+
+        // Initialize Default View
+        window.renderData('queue');
+
+        // BACKGROUND ANIMATION LOGIC
+        document.addEventListener('mousemove', (e) => { 
+            document.documentElement.style.setProperty('--mouse-x', `${e.clientX}px`); 
+            document.documentElement.style.setProperty('--mouse-y', `${e.clientY}px`); 
+        });
+        const canvas = document.getElementById('bg-canvas'); const ctx = canvas.getContext('2d'); canvas.width = window.innerWidth; canvas.height = window.innerHeight; let particles = []; 
+        class Particle { constructor() { this.x = Math.random() * canvas.width; this.y = Math.random() * canvas.height; this.size = Math.random() * 4 + 1; this.speedX = Math.random() * 0.6 - 0.3; this.speedY = Math.random() * 0.6 - 0.3; } update() { this.x += this.speedX; this.y += this.speedY; if(this.x > canvas.width) this.x = 0; else if(this.x < 0) this.x = canvas.width; if(this.y > canvas.height) this.y = 0; else if(this.y < 0) this.y = canvas.height; } draw() { ctx.fillStyle = 'rgba(13, 148, 136, 0.25)'; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill(); } } 
+        for(let i=0; i<80; i++) particles.push(new Particle()); function animate() { ctx.clearRect(0, 0, canvas.width, canvas.height); particles.forEach(p => { p.update(); p.draw(); }); requestAnimationFrame(animate); } animate();
+    </script>
+</body>
+</html>

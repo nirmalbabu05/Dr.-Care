@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pharmacy Desk | Dr. Care</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        :root { --bg-base: #f8fafc; --bg-pure: #ffffff; --text-main: #0f172a; --text-muted: #64748b; --accent-glow: #0d9488; --glass-border: #e2e8f0;}
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
+        body { background-color: var(--bg-base); color: var(--text-main); min-height: 100vh; padding: 2rem 5%; }
+        .navbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2.5rem; }
+        .back-link { text-decoration: none; color: var(--text-muted); font-weight: 700; display: flex; align-items: center; gap: 8px; transition: 0.3s; }
+        .back-link:hover { color: var(--accent-glow); }
+        .header h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 0.5rem; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; margin-top: 2rem; }
+        .rx-card { background: white; border: 1px solid var(--glass-border); border-radius: 24px; padding: 1.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.03); border-top: 5px solid var(--accent-glow); }
+        .patient-info { margin-bottom: 1rem; }
+        .patient-info h3 { font-size: 1.2rem; font-weight: 800; }
+        .patient-info p { font-size: 0.85rem; color: var(--text-muted); }
+        .med-list { list-style: none; margin-bottom: 1.5rem; border-top: 1px dashed #eee; padding-top: 1rem; }
+        .med-list li { display: flex; justify-content: space-between; padding: 8px 0; font-weight: 600; font-size: 0.95rem; }
+        .card-actions { display: flex; gap: 10px; }
+        .btn { flex: 1; padding: 12px; border-radius: 12px; border: none; font-weight: 800; cursor: pointer; transition: 0.3s; }
+        .btn-print { background: #f1f5f9; color: var(--text-main); }
+        .btn-dispense { background: var(--accent-glow); color: white; }
+        #print-section { display: none; }
+
+        @media print {
+            body * { display: none !important; } 
+            #print-section { display: block !important; } 
+            #print-section * { display: block !important; }
+            .print-receipt { padding: 40px; border: none; width: 100%; }
+            .print-header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 20px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { text-align: left; padding: 12px; border-bottom: 1px solid #ddd; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="navbar">
+        <a href="staff.html" class="back-link"><i class="ph-bold ph-arrow-left"></i> Back to Desk</a>
+        <div style="font-weight: 800; color: var(--accent-glow); display:flex; align-items:center; gap:8px;"><i class="ph-bold ph-cloud-check"></i> LIVE CLOUD TERMINAL</div>
+    </div>
+
+    <div class="header">
+        <h1>Active Prescriptions</h1>
+        <p style="color: var(--text-muted); font-weight: 600;">Dispense medicines directly from Cloud E-Vault</p>
+    </div>
+
+    <div class="grid" id="mainGrid">
+        <div style="grid-column:1/-1; text-align:center; padding:5rem; color:#999;"><h3>Connecting to Pharmacy Cloud...</h3></div>
+    </div>
+
+    <div id="print-section">
+        <div class="print-receipt">
+            <div class="print-header">
+                <h1 style="color: #0d9488;">DR. CARE CLINIC</h1>
+                <p>Digital Health Receipt</p>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-top: 20px;">
+                <p><strong>Patient:</strong> <span id="p-name"></span></p>
+                <p><strong>Date:</strong> <span id="p-date"></span></p>
+            </div>
+            <table id="p-table">
+                <thead><tr><th>Medicine</th><th>Dosage</th><th>Days</th></tr></thead>
+                <tbody id="p-body"></tbody>
+            </table>
+            <div style="margin-top: 50px; text-align: right;"><p>Authorized Signature</p><p style="margin-top: 30px;">___________________</p></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getDatabase, ref, onValue, get, child, set } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDFmxplnyx8_YZfeaAioPcAdn0d5jwPO_g",
+            authDomain: "drcare-f6c66.firebaseapp.com",
+            databaseURL: "https://drcare-f6c66-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "drcare-f6c66",
+            storageBucket: "drcare-f6c66.firebasestorage.app",
+            messagingSenderId: "833833626441",
+            appId: "1:833833626441:web:974c0ecf65419444804898"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const dbRef = ref(db);
+
+        let pharmacyData = {};
+
+        onValue(ref(db, 'clinicPrescriptions'), (snap) => {
+            pharmacyData = snap.val() || {};
+            window.renderPrescriptions();
+        });
+
+        window.renderPrescriptions = function() {
+            const grid = document.getElementById('mainGrid');
+            grid.innerHTML = '';
+            let count = 0;
+
+            for (const phone in pharmacyData) {
+                pharmacyData[phone].forEach((rx, index) => {
+                    if (rx && !rx.dispensed) {
+                        count++;
+                        const card = document.createElement('div');
+                        card.className = 'rx-card';
+                        
+                        let medsHTML = '';
+                        if(rx.medicines) {
+                            rx.medicines.forEach(m => { medsHTML += '<li>' + m.name + ' <span>' + m.dosage + '</span></li>'; });
+                        }
+
+                        card.innerHTML = 
+                            '<div class="patient-info">' +
+                                '<h3>' + (rx.patientName || 'Token Patient') + '</h3>' +
+                                '<p>' + rx.date + ' | ' + phone + '</p>' +
+                            '</div>' +
+                            '<ul class="med-list">' + medsHTML + '</ul>' +
+                            '<div class="card-actions">' +
+                                '<button class="btn btn-print" onclick="window.handlePrint(\''+phone+'\','+index+')">Print Receipt</button>' +
+                                '<button class="btn btn-dispense" onclick="window.markDone(\''+phone+'\','+index+')">Dispense</button>' +
+                            '</div>';
+                        
+                        grid.appendChild(card);
+                    }
+                });
+            }
+
+            if(count === 0) {
+                grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:5rem; color:#999;"><h3>No pending prescriptions 🎉</h3></div>';
+            }
+        }
+
+        window.markDone = async function(phone, idx) {
+            let userRx = pharmacyData[phone];
+            userRx[idx].dispensed = true;
+            await set(ref(db, `clinicPrescriptions/${phone}`), userRx);
+        }
+
+        window.handlePrint = function(phone, idx) {
+            const rx = pharmacyData[phone][idx];
+            document.getElementById('p-name').innerText = rx.patientName || phone;
+            document.getElementById('p-date').innerText = rx.date;
+            
+            const tbody = document.getElementById('p-body');
+            tbody.innerHTML = ''; 
+            if(rx.medicines) {
+                rx.medicines.forEach(m => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = '<td>' + m.name + '</td><td>' + m.dosage + '</td><td>' + m.days + '</td>';
+                    tbody.appendChild(row);
+                });
+            }
+            window.print();
+        }
+    </script>
+</body>
+</html>

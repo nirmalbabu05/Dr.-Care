@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reception Desk</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        const session = JSON.parse(localStorage.getItem('clinic_session'));
+        if (!session || (session.role !== 'staff' && session.role !== 'admin')) {
+            window.location.replace('index.html');
+        }
+    </script>
+
+    <style>
+        :root { 
+            --bg-base: #f8fafc; --bg-pure: #ffffff; --text-main: #0f172a; --text-muted: #64748b; 
+            --accent-glow: #0d9488; --primary-light: #ccfbf1; 
+            --glass-bg: rgba(255, 255, 255, 0.75); --glass-border: rgba(255, 255, 255, 1); 
+            --shadow-premium: 0 20px 40px -10px rgba(15, 23, 42, 0.08); 
+            --mouse-x: 50%; --mouse-y: 50%; 
+        }
+        html { scroll-behavior: smooth; } 
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; } 
+        body { background-color: var(--bg-base); color: var(--text-main); overflow-x: hidden; min-height: 100vh; display: flex; flex-direction: column; }
+        
+        .cursor-glow { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: radial-gradient(circle 600px at var(--mouse-x) var(--mouse-y), rgba(13, 148, 136, 0.15), transparent 60%); z-index: -1; pointer-events: none; transition: 0.1s; }
+        #bg-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -3; pointer-events: none; opacity: 0.8; }
+
+        .navbar { display: flex; justify-content: space-between; align-items: center; padding: 1rem 5%; background: var(--glass-bg); backdrop-filter: blur(20px); border-bottom: 1px solid var(--glass-border); position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 20px rgba(0,0,0,0.03); }
+        .logo { font-size: 1.5rem; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 8px; cursor: pointer; } 
+        .logo-icon { color: var(--accent-glow); font-size: 1.8rem; }
+        .nav-links { display: flex; gap: 2.5rem; align-items: center;} 
+        .nav-links a { text-decoration: none; color: var(--text-muted); font-weight: 600; transition: 0.3s; cursor: pointer;} 
+        .nav-links a.active, .nav-links a:hover { color: var(--accent-glow); font-weight: 700;}
+        .nav-actions { display: flex; gap: 1.2rem; align-items: center; } 
+        .dr-profile-nav { display: flex; align-items: center; gap: 10px; background: var(--bg-pure); padding: 5px 15px 5px 5px; border-radius: 50px; box-shadow: var(--shadow-premium); border: 1px solid var(--glass-border); height: 46px;} 
+        .avatar { width: 36px; height: 36px; border-radius: 50%; background: #fef08a; display: flex; justify-content: center; align-items: center; font-size: 1.2rem; }
+        
+        .btn-outline { background: var(--bg-pure); color: var(--text-main); border: 1px solid var(--glass-border); padding: 0.8rem 1.5rem; border-radius: 12px; font-weight: 700; cursor: pointer; box-shadow: var(--shadow-premium); transition: all 0.3s ease; height: 46px; display: flex; align-items: center; justify-content: center; gap: 8px;} 
+        .btn-outline:hover { color: var(--accent-glow); border-color: var(--accent-glow); box-shadow: 0 10px 25px rgba(13, 148, 136, 0.15);}
+        .btn-primary { background: var(--accent-glow); color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 12px; font-weight: 700; cursor: pointer; transition: 0.3s; height: 46px; display: flex; align-items: center; justify-content: center;} 
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 15px 30px rgba(13, 148, 136, 0.3);}
+        .btn-danger { background: #fef2f2; color: #ef4444; border: 1px solid #fecaca; padding: 0.8rem 1.5rem; border-radius: 12px; font-weight: 700; cursor: pointer; transition: 0.3s; height: 46px; display: flex; align-items: center; justify-content: center;} 
+        .btn-danger:hover { transform: translateY(-2px); background: #ef4444; color: white;}
+
+        .action-btns { display: flex; gap: 8px; }
+        .btn-action-early { background:#fef08a; color:#854d0e; border:1px solid #eab308; padding:6px 12px; border-radius:8px; font-size:0.85rem; font-weight:800; cursor:pointer; transition:0.2s;}
+        .btn-action-early:hover { background: #facc15; }
+        .btn-action-delay { background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; padding:6px 12px; border-radius:8px; font-size:0.85rem; font-weight:800; cursor:pointer; transition:0.2s;}
+        .btn-action-delay:hover { background: #e2e8f0; }
+
+        .container { flex: 1; max-width: 1400px; margin: auto; padding: 2rem 5%; width: 100%;} 
+        .dashboard-header { margin-bottom: 2.5rem; display: flex; justify-content: space-between; align-items: center;} 
+        .dashboard-header h1 { font-size: 2.5rem; font-weight: 800; letter-spacing: -1px; }
+        .glass-panel { background: var(--glass-bg); backdrop-filter: blur(15px); border: 1px solid var(--glass-border); border-radius: 30px; padding: 2.5rem; box-shadow: var(--shadow-premium); }
+        
+        .time-tags { display: flex; gap: 1rem; justify-content: center;} 
+        .time-tag-real { background: #fef2f2; color: #ef4444; border: 1px solid #fecaca; padding: 8px 18px; border-radius: 20px; font-size: 0.95rem; font-weight: 800;} 
+        .time-tag-fake { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; padding: 8px 18px; border-radius: 20px; font-size: 0.95rem; font-weight: 800;}
+        
+        .data-table { width: 100%; border-collapse: collapse; margin-top: 1.5rem;} 
+        .data-table th { text-align: left; padding: 1.2rem 1rem; color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; border-bottom: 2px solid var(--glass-border); } 
+        .data-table td { padding: 1.2rem 1rem; border-bottom: 1px solid var(--glass-border); vertical-align: middle; font-weight: 600; font-size: 0.95rem;}
+        .badge { padding: 8px 14px; border-radius: 50px; font-size: 0.85rem; font-weight: 700; display: inline-block; } 
+        .badge-blue { background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd;}
+
+        .history-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(4px); z-index: 999; opacity: 0; pointer-events: none; transition: 0.3s; } 
+        .history-overlay.active { opacity: 1; pointer-events: all; }
+        .side-panel { position: fixed; top: 0; right: -800px; width: 700px; max-width: 100vw; height: 100vh; background: var(--bg-pure); box-shadow: -10px 0 40px rgba(0,0,0,0.15); z-index: 1000; transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1); padding: 2.5rem; display: flex; flex-direction: column; overflow-y: auto;} 
+        .side-panel.active { right: 0; }
+        .close-btn { background: none; border: none; font-size: 2rem; cursor: pointer; color: var(--text-muted); transition: 0.2s; line-height: 1;}
+        .close-btn:hover { color: #ef4444; }
+
+        [popover] { margin: auto; padding: 2.5rem; background: var(--glass-bg); backdrop-filter: blur(25px); border: 1px solid var(--glass-border); border-radius: 24px; color: var(--text-main); width: 90%; max-width: 500px; box-shadow: 0 50px 100px -20px rgba(13, 148, 136, 0.25); }
+        [popover]::backdrop { background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(8px); }
+        .input-group { margin-bottom: 1.2rem; text-align: left; } 
+        .input-group label { display: block; font-size: 0.9rem; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; } 
+        .modern-input { width: 100%; padding: 1.2rem; background: var(--bg-pure); border: 1px solid #e2e8f0; border-radius: 12px; font-size: 1rem; outline: none; transition: 0.3s; font-weight: 600; color: var(--text-main);}
+        .modern-input:focus { border-color: var(--accent-glow); box-shadow: 0 0 0 3px var(--primary-light);}
+
+        #analyticsPopover { max-width: 600px; }
+        .analytics-title { font-size: 2rem; font-weight: 800; color: #7c3aed; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px;}
+        .analytics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2.5rem; }
+        .stat-card { padding: 1.5rem; border-radius: 16px; text-align: center; border: 1px solid; transition: 0.3s; box-shadow: 0 4px 10px rgba(0,0,0,0.02);}
+        .stat-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.05);}
+        .stat-card h4 { text-transform: uppercase; font-size: 0.85rem; margin-bottom: 8px; font-weight: 800; letter-spacing: 0.5px;}
+        .stat-card p { font-size: 3rem; font-weight: 900; line-height: 1; }
+        .stat-card.total { background: #f8fafc; border-color: #e2e8f0; }
+        .stat-card.total h4 { color: var(--text-muted); }
+        .stat-card.total p { color: var(--text-main); }
+        .stat-card.completed { background: #f0fdf4; border-color: #bbf7d0; }
+        .stat-card.completed h4 { color: #16a34a; }
+        .stat-card.completed p { color: #15803d; }
+
+        .chart-section h3 { font-size: 1.1rem; margin-bottom: 1rem; font-weight: 800; color: var(--text-main);}
+        .progress-container { width: 100%; background: #e2e8f0; height: 34px; border-radius: 20px; overflow: hidden; display: flex; margin-bottom: 15px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);}
+        .progress-completed { background: linear-gradient(90deg, #10b981, #34d399); height: 100%; width: 0%; transition: width 1.5s cubic-bezier(0.16, 1, 0.3, 1); display: flex; align-items: center; justify-content: center; color: white; font-size: 0.85rem; font-weight: 800; text-shadow: 0 1px 2px rgba(0,0,0,0.2);}
+        .progress-waiting { background: linear-gradient(90deg, #0ea5e9, #38bdf8); height: 100%; width: 0%; transition: width 1.5s cubic-bezier(0.16, 1, 0.3, 1); display: flex; align-items: center; justify-content: center; color: white; font-size: 0.85rem; font-weight: 800; text-shadow: 0 1px 2px rgba(0,0,0,0.2);}
+        .legend { display: flex; justify-content: space-between; font-size: 0.9rem; font-weight: 700; padding: 0 10px;}
+        .legend-comp { color: #10b981; display: flex; align-items: center; gap: 5px;}
+        .legend-wait { color: #0ea5e9; display: flex; align-items: center; gap: 5px;}
+
+        @media (max-width: 1024px) { .nav-links {display: none;} .data-table {display: block; overflow-x: auto;} .side-panel { width: 100%; } }
+    </style>
+</head>
+<body>
+    <div class="cursor-glow" id="cursorGlow"></div><canvas id="bg-canvas"></canvas>
+
+    <nav class="navbar">
+        <div class="logo" onclick="window.location.href='index.html'"><span class="logo-icon">✤</span> Dr. Care</div>
+        <div class="nav-links">
+            <a href="#" class="active">Queue Control</a>
+            <a onclick="window.openRegistry()">Registry</a>
+        </div>
+        <div class="nav-actions">
+            <button class="btn-outline" style="border-color: #d8b4fe; color: #7c3aed;" onclick="window.openAnalytics()">📊 Live Analytics</button>
+            <button class="btn-outline" style="border-color: #10b981; color: #059669;" onclick="window.location.href='pharmacy.html'">💊 Pharmacy Desk</button>
+            <div class="dr-profile-nav">
+                <div class="avatar">👩‍💼</div>
+                <span style="font-weight: 700; padding-right: 10px; color: var(--text-main);" id="staffNavName">Front Desk</span>
+            </div>
+            <button class="btn-danger" onclick="window.logout()">Sign Out</button>
+        </div>
+    </nav>
+
+    <main class="container">
+        <div class="dashboard-header">
+            <div><h1>Reception Desk</h1><p id="dateDisplay" style="color: var(--text-muted); font-weight: 600; margin-top: 5px;"></p></div>
+            <button class="btn-primary" popovertarget="walkInPopover" style="background: var(--text-main);">+ Add Walk-In Patient</button>
+        </div>
+
+        <div class="glass-panel" style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div>
+                <h3 style="color: var(--text-muted); font-size: 0.9rem; text-transform: uppercase; margin-bottom: 5px;">Currently Consulting</h3>
+                <h2 style="font-size: 2.5rem; font-weight: 800; color: var(--accent-glow);" id="currentToken">#-- <span style="color:var(--text-main); font-size:1.8rem; margin-left: 10px;" id="currentName">Waiting...</span></h2>
+            </div>
+            <div class="time-tags">
+                <div class="time-tag-real" id="currentRealTime">REAL: --:--</div>
+                <div class="time-tag-fake" id="currentFakeTime">TOLD: --:--</div>
+            </div>
+            <button class="btn-primary" onclick="window.callNextPatient()">Force Next Slot</button>
+        </div>
+
+        <div class="glass-panel">
+            <h2 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between;">Live Waiting Queue <span class="badge badge-blue" style="font-size: 1rem; background: var(--primary-light); color: var(--accent-glow); border-color: var(--accent-glow);" id="waitingCount">0 Waiting</span></h2>
+            <table class="data-table">
+                <thead><tr><th>Token</th><th>Patient</th><th>Real Slot</th><th>Told Time</th><th>Action Engine</th></tr></thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <div class="history-overlay" id="registryOverlay" onclick="window.closeRegistry()"></div>
+    <div class="side-panel" id="registryPanel">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #eee; padding-bottom:1.5rem; margin-bottom:1.5rem;">
+            <h2 style="font-size: 1.8rem; font-weight: 800; color: var(--text-main);">Patient Registry</h2>
+            <button class="close-btn" onclick="window.closeRegistry()">×</button>
+        </div>
+        <table class="data-table">
+            <thead><tr><th>Token</th><th>Name</th><th>Phone</th><th>Status</th></tr></thead>
+            <tbody id="registryTableBody"></tbody>
+        </table>
+    </div>
+
+    <div id="walkInPopover" popover>
+        <button class="close-btn" style="float: right;" popovertarget="walkInPopover" popovertargetaction="hide">×</button>
+        <h2 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 1.5rem;">Walk-In Registration</h2>
+        <div class="input-group">
+            <label>Patient Name</label>
+            <input type="text" id="walkInName" class="modern-input" placeholder="E.g. Ramesh">
+        </div>
+        <div class="input-group">
+            <label>Mobile Number</label>
+            <input type="tel" id="walkInPhone" class="modern-input" placeholder="10-digit number">
+        </div>
+        <div class="input-group">
+            <label>Issue</label>
+            <input type="text" id="walkInIssue" class="modern-input" placeholder="E.g. Headache">
+        </div>
+        <button class="btn-primary" id="confirmWalkInBtn" style="width: 100%; margin-top: 1.5rem; padding: 1.2rem; font-size: 1.1rem; background: var(--accent-glow);" onclick="window.processWalkIn()">Register to Queue</button>
+    </div>
+
+    <div id="analyticsPopover" popover>
+        <button class="close-btn" style="float: right;" popovertarget="analyticsPopover" popovertargetaction="hide">×</button>
+        <h2 class="analytics-title">📊 Clinic Analytics</h2>
+        <div class="analytics-grid">
+            <div class="stat-card total">
+                <h4>Total Tokens Today</h4>
+                <p id="statTotal">0</p>
+            </div>
+            <div class="stat-card completed">
+                <h4>Completed Consults</h4>
+                <p id="statCompleted">0</p>
+            </div>
+        </div>
+        <div class="chart-section">
+            <h3>Queue Distribution</h3>
+            <div class="progress-container">
+                <div class="progress-completed" id="barCompleted"></div>
+                <div class="progress-waiting" id="barWaiting"></div>
+            </div>
+            <div class="legend">
+                <span class="legend-comp">🟢 Completed</span>
+                <span class="legend-wait">🔵 Waiting</span>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getDatabase, ref, onValue, set, get, child } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDFmxplnyx8_YZfeaAioPcAdn0d5jwPO_g",
+            authDomain: "drcare-f6c66.firebaseapp.com",
+            databaseURL: "https://drcare-f6c66-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "drcare-f6c66",
+            storageBucket: "drcare-f6c66.firebasestorage.app",
+            messagingSenderId: "833833626441",
+            appId: "1:833833626441:web:974c0ecf65419444804898"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const dbRef = ref(db);
+
+        const userSession = JSON.parse(localStorage.getItem('clinic_session'));
+        document.getElementById('staffNavName').innerText = session.name.split(' ')[0] || "Staff";
+        document.getElementById('dateDisplay').innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+        window.logout = function() { localStorage.removeItem('clinic_session'); window.location.replace('index.html'); };
+
+        let currentQueue = [];
+        let activePatient = null;
+        let completedList = [];
+
+        onValue(ref(db, 'clinicQueue'), snap => {
+            let q = snap.val() || [];
+            currentQueue = Object.values(q).filter(x=>x!==null);
+            window.updateUI();
+        });
+        onValue(ref(db, 'currentPatient'), snap => {
+            activePatient = snap.exists() ? snap.val() : null;
+            window.updateUI();
+        });
+        onValue(ref(db, 'completedPatients'), snap => {
+            let h = snap.val() || [];
+            completedList = Object.values(h).filter(x=>x!==null);
+        });
+
+        window.recalculateQueueTimes = function(queue, curPatient) {
+            if (queue.length === 0) return queue;
+            let baseDate = new Date();
+            if (curPatient && curPatient.realTime) {
+                let [time, modifier] = curPatient.realTime.split(' ');
+                let [h, m] = time.split(':'); h = parseInt(h, 10); m = parseInt(m, 10);
+                if (modifier === 'PM' && h !== 12) h += 12; if (modifier === 'AM' && h === 12) h = 0;
+                baseDate.setHours(h, m, 0, 0);
+            } else {
+                baseDate.setMinutes(Math.ceil(baseDate.getMinutes() / 10) * 10);
+                baseDate = new Date(baseDate.getTime() - 20 * 60000); 
+            }
+            for (let i = 0; i < queue.length; i++) {
+                baseDate = new Date(baseDate.getTime() + 20 * 60000); 
+                queue[i].realTime = baseDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                let dispDate = new Date(baseDate.getTime() - 20 * 60000);
+                queue[i].displayTime = dispDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+            }
+            return queue;
+        }
+
+        window.notifyEarly = async function(token) { 
+            let q = [...currentQueue]; let index = q.findIndex(x => x.token === token); 
+            if(index !== -1) { 
+                let p = q.splice(index, 1)[0]; p.earlyCall = true; 
+                q.unshift(p); q = window.recalculateQueueTimes(q, activePatient); 
+                await set(ref(db, 'clinicQueue'), q); 
+            } 
+        }
+        window.delayPatient = async function(token) { 
+            let q = [...currentQueue]; let index = q.findIndex(x => x.token === token); 
+            if(index !== -1) { 
+                let p = q.splice(index, 1)[0]; p.earlyCall = false; 
+                q.push(p); q = window.recalculateQueueTimes(q, activePatient); 
+                await set(ref(db, 'clinicQueue'), q); 
+            } 
+        }
+
+        window.updateUI = function() {
+            const tbody = document.getElementById('tableBody'); tbody.innerHTML = '';
+            
+            if(activePatient) {
+                document.getElementById('currentToken').innerHTML = `#${activePatient.token} <span style="color:var(--text-main); font-size:1.5rem; margin-left: 10px;">${activePatient.name}</span>`;
+                document.getElementById('currentRealTime').innerText = `REAL: ${activePatient.realTime}`; 
+                document.getElementById('currentFakeTime').innerText = `TOLD: ${activePatient.displayTime}`;
+            } else {
+                document.getElementById('currentToken').innerHTML = `#-- <span style="color:var(--text-main); font-size:1.5rem; margin-left: 10px;">Waiting...</span>`;
+                document.getElementById('currentRealTime').innerText = `REAL: --:--`; 
+                document.getElementById('currentFakeTime').innerText = `TOLD: --:--`;
+            }
+
+            if(currentQueue.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 2rem; color: var(--text-muted); font-weight:600;">Queue Empty</td></tr>';
+            }
+
+            currentQueue.forEach(p => { 
+                let alertHtml = p.earlyCall ? `<span style="color:#eab308; font-weight:800; font-size:0.85rem; display:block; margin-top:4px;">🚨 Notified</span>` : ``;
+                tbody.innerHTML += `
+                <tr>
+                    <td><span class="badge badge-blue" style="font-size: 1rem; padding: 10px 18px;">#${p.token}</span></td>
+                    <td><span style="font-size: 1.1rem;">${p.name}</span> ${alertHtml} <br><span style="color:var(--text-muted); font-size:0.85rem;">${p.issue}</span></td>
+                    <td><span style="color:#ef4444; font-weight:800; font-size: 1rem;">${p.realTime}</span></td>
+                    <td><span style="color:#16a34a; font-weight:800; font-size: 1rem;">${p.displayTime}</span></td>
+                    <td><div class="action-btns"><button class="btn-action-early" onclick="window.notifyEarly(${p.token})">🔔 Early</button><button class="btn-action-delay" onclick="window.delayPatient(${p.token})">⬇️ Delay</button></div></td>
+                </tr>`; 
+            });
+            document.getElementById('waitingCount').innerText = `${currentQueue.length} Waiting`;
+        }
+
+        window.openRegistry = function() { 
+            const tbody = document.getElementById('registryTableBody'); tbody.innerHTML = ''; 
+            if(activePatient) tbody.innerHTML += `<tr style="background:#f0fdf4;"><td>#${activePatient.token}</td><td>${activePatient.name}</td><td>${activePatient.phone}</td><td><span style="color:#16a34a; font-weight: 800; font-size: 0.8rem;">CONSULTING</span></td></tr>`; 
+            currentQueue.forEach(p => { tbody.innerHTML += `<tr><td>#${p.token}</td><td>${p.name}</td><td>${p.phone}</td><td><span style="color:#0284c7; font-weight: 800; font-size: 0.8rem;">WAITING</span></td></tr>`; }); 
+            completedList.forEach(p => { tbody.innerHTML += `<tr style="opacity:0.6;"><td>#${p.token}</td><td>${p.name}</td><td>${p.phone}</td><td><span style="color:var(--text-muted); font-weight: 800; font-size: 0.8rem;">COMPLETED</span></td></tr>`; }); 
+            document.getElementById('registryOverlay').classList.add('active'); document.getElementById('registryPanel').classList.add('active'); 
+        }
+        window.closeRegistry = function() { document.getElementById('registryOverlay').classList.remove('active'); document.getElementById('registryPanel').classList.remove('active'); }
+
+        window.processWalkIn = async function() { 
+            let name = document.getElementById('walkInName').value.trim(); 
+            let phone = document.getElementById('walkInPhone').value.trim(); 
+            let issue = document.getElementById('walkInIssue').value.trim(); 
+            if(!name || !phone) return alert("Enter Name and Phone"); 
+            
+            let btn = document.getElementById('confirmWalkInBtn');
+            btn.innerHTML = 'Registering to Cloud...';
+
+            const counterSnap = await get(child(dbRef, 'tokenCounter'));
+            let token = counterSnap.exists() ? counterSnap.val() : 1;
+
+            let q = [...currentQueue];
+            q.push({ token: token, name: name, phone: phone, issue: issue || "Walk-In", earlyCall: false }); 
+            q = window.recalculateQueueTimes(q, activePatient); 
+            
+            await set(ref(db, 'clinicQueue'), q); 
+            await set(ref(db, 'tokenCounter'), token + 1); 
+            
+            btn.innerHTML = `✓ Registered! Token #${token}`; btn.style.background = '#10b981'; 
+            setTimeout(() => { 
+                document.getElementById('walkInPopover').hidePopover(); 
+                btn.innerHTML = 'Register to Queue'; btn.style.background = 'var(--accent-glow)'; 
+                document.getElementById('walkInName').value = ''; document.getElementById('walkInPhone').value = ''; document.getElementById('walkInIssue').value = ''; 
+            }, 1500); 
+        }
+
+        window.callNextPatient = async function() { 
+            let q = [...currentQueue];
+            if(activePatient) { 
+                let h = [...completedList]; 
+                h.push(activePatient); 
+                await set(ref(db, 'completedPatients'), h); 
+            }
+            if (q.length === 0) { 
+                await set(ref(db, 'currentPatient'), null);
+                return alert("Queue empty!"); 
+            }
+            
+            let next = q.shift(); 
+            q = window.recalculateQueueTimes(q, next); 
+            await set(ref(db, 'clinicQueue'), q); 
+            await set(ref(db, 'currentPatient'), next);
+        }
+
+        window.openAnalytics = function() {
+            let total = currentQueue.length + completedList.length + (activePatient ? 1 : 0);
+            let comp = completedList.length;
+            let wait = currentQueue.length + (activePatient ? 1 : 0);
+
+            document.getElementById('barCompleted').style.width = `0%`; document.getElementById('barWaiting').style.width = `0%`;
+            document.getElementById('barCompleted').innerText = ''; document.getElementById('barWaiting').innerText = '';
+            document.getElementById('statTotal').innerText = total; document.getElementById('statCompleted').innerText = comp;
+
+            document.getElementById('analyticsPopover').showPopover();
+
+            setTimeout(() => {
+                if(total > 0) {
+                    let compPercent = Math.round((comp/total)*100); let waitPercent = Math.round((wait/total)*100);
+                    document.getElementById('barCompleted').style.width = `${compPercent}%`;
+                    if(compPercent > 5) document.getElementById('barCompleted').innerText = `${compPercent}%`;
+                    document.getElementById('barWaiting').style.width = `${waitPercent}%`;
+                    if(waitPercent > 5) document.getElementById('barWaiting').innerText = `${waitPercent}%`;
+                }
+            }, 150);
+        }
+
+        document.addEventListener('mousemove', (e) => { document.documentElement.style.setProperty('--mouse-x', `${e.clientX}px`); document.documentElement.style.setProperty('--mouse-y', `${e.clientY}px`); });
+        const canvas = document.getElementById('bg-canvas'); const ctx = canvas.getContext('2d'); canvas.width = window.innerWidth; canvas.height = window.innerHeight; let particles = []; class Particle { constructor() { this.x = Math.random() * canvas.width; this.y = Math.random() * canvas.height; this.size = Math.random() * 4 + 1; this.speedX = Math.random() * 0.6 - 0.3; this.speedY = Math.random() * 0.6 - 0.3; } update() { this.x += this.speedX; this.y += this.speedY; if(this.x > canvas.width) this.x = 0; else if(this.x < 0) this.x = canvas.width; if(this.y > canvas.height) this.y = 0; else if(this.y < 0) this.y = canvas.height; } draw() { ctx.fillStyle = 'rgba(13, 148, 136, 0.25)'; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill(); } } for(let i=0; i<80; i++) particles.push(new Particle()); function animate() { ctx.clearRect(0, 0, canvas.width, canvas.height); particles.forEach(p => { p.update(); p.draw(); }); requestAnimationFrame(animate); } animate();
+    </script>
+</body>
+</html>
