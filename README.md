@@ -4,7 +4,7 @@
 
 **Dr. Care** is a 100% cloud-connected, paperless, and real-time clinic management ecosystem. It completely eliminates crowded waiting rooms by providing patients with live queue tracking and seamlessly connects all hospital departments through specialized, role-based portals using a high-performance, serverless architecture.
 
-**Demo Website**
+**Demo Website-**
 https://drcare2026.netlify.app/
 
 ## ✨ Key Features
@@ -42,7 +42,7 @@ Since this project utilizes a serverless architecture with Firebase, setting it 
 
 **1️⃣ Clone the repository**
 ```bash
-git clone [https://github.com/yourusername/Dr-Care-Clinic.git](https://github.com/yourusername/Dr.-Care.git)
+git clone [https://github.com/nirmalbabu05/Dr.-Care.git](https://github.com/yourusername/Dr.-Care.git)
 cd Dr.-Care
 ```
 
